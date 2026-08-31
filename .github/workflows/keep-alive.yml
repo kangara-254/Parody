@@ -1,0 +1,19 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs every 3 days at 03:00 UTC
+    - cron: "0 3 */3 * *"
+  # Allows manual triggering from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase (keepalive_ping)
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/keepalive_ping" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"

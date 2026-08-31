@@ -1,0 +1,357 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: #241417;
+  background: #f6f1e6;
+  background-attachment: fixed;
+}
+
+/* ============================================================
+   KARIOBANGI SOUTH -- PAPER/LEDGER DESIGN SYSTEM
+   Rooted in the actual school crest (maroon linework, brass seal,
+   ribbon banner) rather than a generic frosted-glass template.
+   Surfaces read as paper -- flat, warm, hairline rules -- not glass.
+
+   Both ".neu-*" (legacy name) and ".glass-*" (current name) classes
+   are defined identically below -- older pages in this codebase still
+   use the neu-* class names, newer pages use glass-*. Keep both in
+   sync if you change the look; do not delete either set.
+   ============================================================ */
+
+.neu-card,
+.glass-card {
+  background: #fffdfa;
+  border: 1px solid rgba(36, 20, 23, 0.10);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(36, 20, 23, 0.04), 0 8px 24px rgba(36, 20, 23, 0.05);
+  position: relative;
+}
+
+/* Shared chrome for both <input> and <select> */
+.neu-input,
+.glass-input {
+  width: 100%;
+  background: #fffdfa;
+  border: 1px solid rgba(36, 20, 23, 0.16);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.875rem;
+  color: #241417;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.neu-input::placeholder,
+.glass-input::placeholder {
+  color: #8a7a7c;
+}
+.neu-input:focus,
+.glass-input:focus {
+  border-color: #a3123f;
+  box-shadow: 0 0 0 3px rgba(163, 18, 63, 0.14);
+}
+
+/* select-specific: real custom arrow, no native OS chrome */
+select.neu-input,
+select.glass-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%238a7a7c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 18px;
+  cursor: pointer;
+}
+select.neu-input:hover,
+select.glass-input:hover {
+  border-color: rgba(163, 18, 63, 0.3);
+}
+select.neu-input:focus,
+select.glass-input:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23a3123f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+select.neu-input option,
+select.glass-input option {
+  background: #ffffff;
+  color: #241417;
+}
+
+/* Score entry fields (Enter Marks grid): no native up/down spinner.
+   That spinner is what let a scroll-wheel nudge or an arrow key change
+   a mark instead of a teacher's finger going to the next learner via
+   Enter -- see the onKeyDown handler in teacher/MarkEntry.tsx. */
+input.no-spinner::-webkit-outer-spin-button,
+input.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input.no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.neu-btn,
+.glass-btn {
+  background: #a3123f;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(122, 15, 48, 0.28);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+.neu-btn:hover,
+.glass-btn:hover {
+  background: #8c1035;
+  box-shadow: 0 3px 10px rgba(122, 15, 48, 0.34);
+}
+.neu-btn:active,
+.glass-btn:active {
+  background: #7a0f30;
+  transform: translateY(1px);
+}
+.neu-btn:disabled,
+.glass-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.neu-btn-sm,
+.glass-btn-sm {
+  background: rgba(163, 18, 63, 0.07);
+  color: #7a0f30;
+  border: 1px solid rgba(163, 18, 63, 0.25);
+  border-radius: 7px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.neu-btn-sm:hover,
+.glass-btn-sm:hover {
+  background: rgba(163, 18, 63, 0.14);
+  border-color: rgba(163, 18, 63, 0.4);
+}
+
+/* Marklist / Analysis segmented tab control */
+.tab-btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #fffdfa;
+  border: 1px solid rgba(36, 20, 23, 0.12);
+  color: #6b5b5d;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tab-btn-active {
+  background: #a3123f;
+  border-color: #a3123f;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(122, 15, 48, 0.3);
+}
+
+/* ------------------------------------------------------------
+   Ribbon badges -- the signature motif of this design system.
+   The crest carries a "STRIVE FOR EXCELLENCE" ribbon banner with
+   notched ends; every status pill in the product (open/closed,
+   CBC performance levels, submission status) echoes that same
+   notched-ribbon shape instead of a generic rounded SaaS pill.
+   ------------------------------------------------------------ */
+.neu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);
+}
+.neu-badge-open {
+  background: rgba(26, 122, 76, 0.12);
+  color: #145c3a;
+  border: 1px solid rgba(26, 122, 76, 0.3);
+}
+.neu-badge-closed {
+  background: rgba(122, 15, 48, 0.09);
+  color: #7a0f30;
+  border: 1px solid rgba(122, 15, 48, 0.28);
+}
+
+/* CBC performance-level badges for Enter Marks / Marklist / Report
+   Forms -- same notched-ribbon pill as neu-badge-open/closed above, one
+   variant per level, colors matching CBC_COLORS in src/types.ts so a
+   level always looks the same wherever it's shown in the app. */
+.neu-badge-ee {
+  background: rgba(26, 122, 76, 0.12);
+  color: #145c3a;
+  border: 1px solid rgba(26, 122, 76, 0.3);
+}
+.neu-badge-me {
+  background: rgba(30, 76, 140, 0.1);
+  color: #1e4c8c;
+  border: 1px solid rgba(30, 76, 140, 0.3);
+}
+.neu-badge-ae {
+  background: rgba(169, 119, 44, 0.14);
+  color: #8a5f20;
+  border: 1px solid rgba(169, 119, 44, 0.35);
+}
+.neu-badge-be {
+  background: rgba(122, 15, 48, 0.09);
+  color: #7a0f30;
+  border: 1px solid rgba(122, 15, 48, 0.28);
+}
+
+.neu-accent-top {
+  border-top: 2px solid #a3123f;
+}
+.neu-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #a9772c;
+  font-weight: 700;
+}
+.neu-panel-title {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(36, 20, 23, 0.1);
+  color: #241417;
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-family: "Bitter", Georgia, serif;
+}
+
+.font-display {
+  font-family: "Bitter", Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ------------------------------------------------------------
+   Crest watermark -- a very quiet full-bleed impression of the
+   school crest, used behind hero/login surfaces so the brand is
+   felt rather than pasted on as a logo chip. Never load-bearing
+   for contrast/legibility; text always sits on solid paper.
+   ------------------------------------------------------------ */
+.crest-watermark {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.crest-watermark::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70%;
+  padding-bottom: 70%;
+  transform: translate(-50%, -50%);
+  background-image: url("./assets/school-crest-maroon.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.05;
+}
+
+/* ------------------------------------------------------------
+   Login card -- a warm parchment surface instead of a flat white
+   "glass" chip. The rest of the app's .glass-card reads fine sitting
+   inside a busy dashboard, but on the login page it's nearly the only
+   thing on screen, so a stark white box against the cream page
+   background looked like a foreign UI kit dropped onto the paper
+   theme. This softens the surface and the fields to sit on the same
+   warm paper as everything else, following the common pattern for
+   auth screens: a barely-differentiated card, muted/tinted inputs
+   (not pure white), and a clear but not garish primary action.
+   ------------------------------------------------------------ */
+.login-card {
+  background: linear-gradient(180deg, #fffdfa 0%, #fbf5ec 100%);
+  border: 1px solid rgba(163, 18, 63, 0.14);
+  box-shadow: 0 1px 2px rgba(122, 15, 48, 0.05), 0 16px 40px rgba(122, 15, 48, 0.09);
+}
+.login-input {
+  background: #fbf6ee;
+  border: 1px solid rgba(163, 18, 63, 0.16);
+}
+.login-input:focus {
+  background: #fffdfa;
+}
+.login-input::placeholder {
+  color: #a9959a;
+}
+
+/* ------------------------------------------------------------
+   Hero priority panel -- "the one thing you need to know right
+   now" pattern used on the dashboards, replacing three equal-
+   weight stat cards with a single dominant panel plus a quiet
+   secondary row underneath it.
+   ------------------------------------------------------------ */
+.hero-panel {
+  background: #fffdfa;
+  border: 1px solid rgba(36, 20, 23, 0.1);
+  border-left: 4px solid #a3123f;
+  border-radius: 4px 14px 14px 4px;
+  box-shadow: 0 1px 2px rgba(36, 20, 23, 0.04), 0 10px 30px rgba(36, 20, 23, 0.06);
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(36, 20, 23, 0.08);
+  box-shadow: inset 0 1px 2px rgba(36, 20, 23, 0.08);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7a0f30, #a3123f);
+  transition: width 0.4s ease;
+}
+.progress-fill-done {
+  background: linear-gradient(90deg, #14603f, #1a7a4c);
+}
+
+/* Quiet secondary stat -- deliberately smaller and lower-contrast
+   than .hero-panel so it reads as supporting information. */
+.stat-quiet {
+  background: transparent;
+  border: 1px solid rgba(36, 20, 23, 0.08);
+  border-radius: 10px;
+}
+
+/* Restrained confirmation pulse for save states (marks grid, save
+   buttons). One quick, definite pulse -- not a looping animation. */
+@keyframes confirm-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(26, 122, 76, 0.35); }
+  100% { box-shadow: 0 0 0 8px rgba(26, 122, 76, 0); }
+}
+.confirm-pulse {
+  animation: confirm-pulse 0.6s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirm-pulse {
+    animation: none;
+  }
+}
+
+/* NOTE: the mobile bottom tab bar (.bottom-nav / .bottom-nav-item /
+   .bottom-nav-item-active) was removed by request -- Shell.tsx no
+   longer renders it, and mobile navigation goes exclusively through
+   the "More"/"Menu" button which opens the same sidebar used on
+   desktop. Deleted the CSS rather than leaving unused dead classes
+   behind. If a bottom bar is ever wanted again, re-add the render in
+   Shell.tsx and restore this block from version control history. */
