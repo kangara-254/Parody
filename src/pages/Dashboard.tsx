@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { Exam, SchoolClass, Teacher, TeacherAssignment, Subject } from "../types";
 import { ClassTeachersStatus } from "./teacher/MyClassLearners";
+import { randomGreeting } from "../lib/greetings";
 
 export default function Dashboard({ effectiveRole }: { effectiveRole?: "admin" | "teacher" } = {}) {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ export default function Dashboard({ effectiveRole }: { effectiveRole?: "admin" |
 // ============================================================
 function AdminDashboard() {
   const { user } = useAuth();
+  const [greeting] = useState(randomGreeting());
   const [teacherCount, setTeacherCount] = useState(0);
   const [learnerCount, setLearnerCount] = useState(0);
   const [exams, setExams] = useState<Exam[]>([]);
@@ -64,7 +66,7 @@ function AdminDashboard() {
   return (
     <div>
       <section className="mb-6 sm:mb-8">
-        <p className="neu-eyebrow">Good day</p>
+        <p className="neu-eyebrow">{greeting}</p>
         <h1 className="font-display text-2xl sm:text-3xl text-maroon-ink mt-1">{user?.name}.</h1>
       </section>
 
@@ -213,6 +215,7 @@ type AssignmentProgress = {
 
 function TeacherDashboard() {
   const { user } = useAuth();
+  const [greeting] = useState(randomGreeting());
   const [exams, setExams] = useState<Exam[]>([]);
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -297,7 +300,7 @@ function TeacherDashboard() {
   return (
     <div>
       <section className="mb-6 sm:mb-8">
-        <p className="neu-eyebrow">Good day</p>
+        <p className="neu-eyebrow">{greeting}</p>
         <h1 className="font-display text-2xl sm:text-3xl text-maroon-ink mt-1">{user?.name}.</h1>
       </section>
 

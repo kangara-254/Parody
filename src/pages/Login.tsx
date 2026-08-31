@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { phoneToEmail } from "../lib/credentials";
-import { verseOfTheDay } from "../lib/verseOfTheDay";
+import { randomQuote } from "../lib/quotes";
 import crest from "../assets/school-crest-maroon.png";
 
 export default function Login() {
@@ -9,7 +9,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const verse = verseOfTheDay();
+  const [quote, setQuote] = useState(randomQuote());
+
+  useEffect(() => {
+    const id = setInterval(() => setQuote(randomQuote()), 2 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   async function submit() {
     setError("");
@@ -47,10 +52,10 @@ export default function Login() {
           />
           <p className="neu-eyebrow">Kariobangi South Primary &amp; Junior School</p>
           <h1 className="font-display text-2xl sm:text-3xl text-maroon-ink mt-2 leading-snug">
-            Junior School Assessment Portal
+            8A2 Assessment Portal
           </h1>
           <p className="text-xs italic text-ink/50 mt-3 max-w-xs mx-auto">
-            "{verse.text}" — {verse.ref}
+            "{quote}"
           </p>
         </div>
 
@@ -87,7 +92,7 @@ export default function Login() {
           </button>
           {error && <div className="text-sm text-maroon">{error}</div>}
           <p className="text-xs text-ink/40 text-center">
-            If you forget your Password inform Daisy or Gashoki
+            8A2 teachers
           </p>
         </div>
       </div>
