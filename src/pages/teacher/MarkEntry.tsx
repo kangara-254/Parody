@@ -33,6 +33,16 @@ export default function MarkEntry() {
   const [activeHalf, setActiveHalf] = useState<"main" | "partner">("main");
   const scoreInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const saveButtonRef = useRef<HTMLButtonElement | null>(null);
+  // Lets a teacher type a few letters of a name to jump straight to that
+  // learner instead of scrolling an alphabetical list of up to ~60 rows.
+  // This is the fix for two separate pain points: (1) scripts get
+  // collected in random order, so marking them in the order they're
+  // picked up means hunting for each name in turn; (2) going back later
+  // to correct one learner's mark means finding them again in a long
+  // list. Typing the name solves both without changing the underlying
+  // alphabetical order everywhere else in the app relies on.
+  const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   // Per-row autosave feedback for the Enter-to-advance flow (see
   // autoSaveRow / handleScoreKeyDown below). Keyed by learner id.
   // "saved" entries clear themselves after a couple of seconds via
@@ -135,7 +145,29 @@ export default function MarkEntry() {
     savedTimerRefs.current = {};
     setRowStatus({});
     setRowError({});
+    setSearch("");
   }, [classId, subjectId, examId, activeHalf]);
+
+  // Name filter for the table below. The full alphabetical `learners`
+  // list stays untouched (saveAll and reports still rely on it) --
+  // this is purely what's visible/navigable while a search is active.
+  const visibleLearners = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return learners;
+    return learners.filter((l) => l.name.toLowerCase().includes(q));
+  }, [learners, search]);
+
+  // As soon as typing narrows it to exactly one learner, put the
+  // cursor straight in their score box -- that's the moment a teacher
+  // holding a script can just type the mark without touching the
+  // mouse or scrolling.
+  useEffect(() => {
+    if (search.trim() && visibleLearners.length === 1) {
+      const only = visibleLearners[0];
+      scoreInputRefs.current[only.id]?.focus();
+      scoreInputRefs.current[only.id]?.select();
+    }
+  }, [search, visibleLearners]);
 
   async function loadGrid() {
     if (!supabase) return;
@@ -270,14 +302,25 @@ export default function MarkEntry() {
   const readyToEnter = !!activeView.maxConfig;
 
   function focusNextScoreInput(currentLearnerId: string) {
-    const idx = learners.findIndex((l) => l.id === currentLearnerId);
-    const next = idx >= 0 ? learners[idx + 1] : null;
-    if (next) {
-      scoreInputRefs.current[next.id]?.focus();
-      scoreInputRefs.current[next.id]?.select();
-    } else {
+    // Marking straight down the class list (no search active): advance
+    // to the next row in the same alphabetical order as always.
+    if (!search.trim()) {
+      const idx = learners.findIndex((l) => l.id === currentLearnerId);
+      const next = idx >= 0 ? learners[idx + 1] : null;
+      if (next) {
+        scoreInputRefs.current[next.id]?.focus();
+        scoreInputRefs.current[next.id]?.select();
+        return;
+      }
       saveButtonRef.current?.focus();
+      return;
     }
+    // Working script-by-script in whatever order they were collected:
+    // "next" isn't a row below this one, it's "look up the next name".
+    // Clear the search and hand focus back to it so the teacher can
+    // immediately type the next learner's name from the next script.
+    setSearch("");
+    searchInputRef.current?.focus();
   }
 
   // Saves exactly one learner's mark for the currently active
@@ -341,8 +384,12 @@ export default function MarkEntry() {
     e.preventDefault();
     if (currentExam?.locked) return;
 
+    // "Last learner" (which triggers the all-done banner) only makes
+    // sense when marking straight down the full list -- while searching
+    // script-by-script there's no meaningful "last" until the teacher
+    // stops, so that banner is skipped for those saves.
     const idx = learners.findIndex((l) => l.id === learnerId);
-    const isLastLearner = idx === learners.length - 1;
+    const isLastLearner = !search.trim() && idx === learners.length - 1;
 
     const raw = activeView.scoreMap[learnerId];
     if (raw === undefined || raw === "") {
@@ -553,6 +600,37 @@ export default function MarkEntry() {
                 </div>
               </div>
 
+              {learners.length > 0 && readyToEnter && (
+                <div className="mb-3 flex items-center gap-2">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Find a learner by name — e.g. to mark scripts in the order you picked them up, or fix one score"
+                    className="glass-input w-full text-sm"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        searchInputRef.current?.focus();
+                      }}
+                      className="glass-btn-sm shrink-0"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+              {search.trim() && (
+                <div className="mb-2 text-xs text-ink/50">
+                  {visibleLearners.length === 0
+                    ? "No learner matches that."
+                    : `${visibleLearners.length} match${visibleLearners.length === 1 ? "" : "es"} — showing filtered list below.`}
+                </div>
+              )}
               <div className="glass-card overflow-hidden">
                 {learners.length === 0 ? (
                   <div className="p-6 text-sm text-ink/50">No learners in this class yet.</div>
@@ -571,7 +649,7 @@ export default function MarkEntry() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-paper text-left sticky top-0 z-10 shadow-[0_1px_0_0_rgba(36,20,23,0.10)]">
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 bg-paper sticky left-0 z-20">Learner</th>
+                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 bg-paper sticky top-0 left-0 z-30">Learner</th>
                           <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-24 sm:w-32 bg-paper">
                             Score (0–{activeView.maxConfig?.max_marks})
                           </th>
@@ -580,7 +658,7 @@ export default function MarkEntry() {
                         </tr>
                       </thead>
                       <tbody>
-                        {learners.map((l) => {
+                        {visibleLearners.map((l) => {
                           const val = activeView.scoreMap[l.id] ?? "";
                           const numeric = Number(val);
                           const valid = val !== "" && !Number.isNaN(numeric);
