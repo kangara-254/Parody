@@ -157,17 +157,12 @@ export default function MarkEntry() {
     return learners.filter((l) => l.name.toLowerCase().includes(q));
   }, [learners, search]);
 
-  // As soon as typing narrows it to exactly one learner, put the
-  // cursor straight in their score box -- that's the moment a teacher
-  // holding a script can just type the mark without touching the
-  // mouse or scrolling.
-  useEffect(() => {
-    if (search.trim() && visibleLearners.length === 1) {
-      const only = visibleLearners[0];
-      scoreInputRefs.current[only.id]?.focus();
-      scoreInputRefs.current[only.id]?.select();
-    }
-  }, [search, visibleLearners]);
+  // Purely visual: when a search narrows to exactly one learner, that
+  // row gets a highlight so the teacher can see they've found the
+  // right one -- but focus stays put. Clicking into the score box is
+  // the teacher's call, not something typing a name should trigger.
+  const singleMatchId =
+    search.trim() && visibleLearners.length === 1 ? visibleLearners[0].id : null;
 
   async function loadGrid() {
     if (!supabase) return;
@@ -648,13 +643,13 @@ export default function MarkEntry() {
                     <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-paper text-left sticky top-0 z-10 shadow-[0_1px_0_0_rgba(36,20,23,0.10)]">
+                        <tr className="bg-paper text-left shadow-[0_1px_0_0_rgba(36,20,23,0.10)]">
                           <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 bg-paper sticky top-0 left-0 z-30">Learner</th>
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-24 sm:w-32 bg-paper">
+                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-24 sm:w-32 bg-paper sticky top-0 z-20">
                             Score (0–{activeView.maxConfig?.max_marks})
                           </th>
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-16 sm:w-20 bg-paper">%</th>
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-20 sm:w-28 bg-paper">Level</th>
+                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-16 sm:w-20 bg-paper sticky top-0 z-20">%</th>
+                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-20 sm:w-28 bg-paper sticky top-0 z-20">Level</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -665,7 +660,12 @@ export default function MarkEntry() {
                           const pct = valid ? (numeric / (activeView.maxConfig?.max_marks ?? 1)) * 100 : null;
                           const level = pct !== null ? cbcLevel(pct) : null;
                           return (
-                            <tr key={l.id} className="border-t border-line">
+                            <tr
+                              key={l.id}
+                              className={`border-t border-line ${
+                                l.id === singleMatchId ? "bg-maroon-50" : ""
+                              }`}
+                            >
                               <td className="px-3 sm:px-5 py-2 text-ink bg-paper sticky left-0 z-10">{l.name}</td>
                               <td className="px-3 sm:px-5 py-2">
                                 <div className="flex flex-col gap-0.5">
