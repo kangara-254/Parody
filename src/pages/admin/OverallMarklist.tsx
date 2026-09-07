@@ -23,6 +23,7 @@ export default function OverallMarklist() {
   const [examSubjectConfig, setExamSubjectConfig] = useState<ExamSubjectConfig[]>([]);
   const [tab, setTab] = useState<"marklist" | "analysis">("marklist");
   const [loading, setLoading] = useState(true);
+  const [plainXlsx, setPlainXlsx] = useState(false);
 
   useEffect(() => {
     loadContext();
@@ -100,6 +101,7 @@ export default function OverallMarklist() {
       totals: marklist.totals,
       includeClassColumn: true,
       filename: marklistTitle.replace(/\s+/g, "_"),
+      plain: plainXlsx,
     });
   }
 
@@ -163,9 +165,19 @@ export default function OverallMarklist() {
                 <h2 className="text-sm font-medium text-ink">
                   Grade {grade} — {currentExam?.name} (Term {currentExam?.term}, {currentYear?.year}) · {marklist.rows.length} learners
                 </h2>
-                <button onClick={downloadMarklist} className="glass-btn-sm">
-                  Download .xlsx
-                </button>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-ink/60">
+                    <input
+                      type="checkbox"
+                      checked={plainXlsx}
+                      onChange={(e) => setPlainXlsx(e.target.checked)}
+                    />
+                    Plain (no colors)
+                  </label>
+                  <button onClick={downloadMarklist} className="glass-btn-sm">
+                    Download .xlsx
+                  </button>
+                </div>
               </div>
               {marklist.rows.length === 0 ? (
                 <div className="p-6 text-sm text-ink/50">No marks recorded yet across this grade for this exam.</div>

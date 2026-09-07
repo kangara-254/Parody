@@ -26,6 +26,7 @@ export default function Results() {
   const [selectedLearnerId, setSelectedLearnerId] = useState("");
   const [tab, setTab] = useState<"marklist" | "analysis">("marklist");
   const [loading, setLoading] = useState(true);
+  const [plainXlsx, setPlainXlsx] = useState(false);
 
   useEffect(() => {
     loadContext();
@@ -151,6 +152,7 @@ export default function Results() {
       rows: marklist.rows,
       totals: marklist.totals,
       filename: marklistTitle.replace(/\s+/g, "_"),
+      plain: plainXlsx,
     });
   }
 
@@ -240,7 +242,15 @@ export default function Results() {
                 <h2 className="text-sm font-medium text-ink">
                   {currentClass?.name} — {currentExam?.name} (Term {currentExam?.term}, {currentYear?.year})
                 </h2>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-ink/60">
+                    <input
+                      type="checkbox"
+                      checked={plainXlsx}
+                      onChange={(e) => setPlainXlsx(e.target.checked)}
+                    />
+                    Plain (no colors)
+                  </label>
                   <button onClick={downloadMarklistXlsx} className="glass-btn-sm">
                     Download .xlsx
                   </button>

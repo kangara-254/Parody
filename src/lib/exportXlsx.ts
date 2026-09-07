@@ -23,12 +23,12 @@ function gradeFormula(scoreCellRef: string, maxCellRef: string): string {
   return `IF(${pct}>=75,"E.E",IF(${pct}>=50,"M.E",IF(${pct}>=25,"A.E","B.E")))`;
 }
 
-function headerBand(ws: ExcelJS.Worksheet, row: number, lastCol: number, text: string) {
+function headerBand(ws: ExcelJS.Worksheet, row: number, lastCol: number, text: string, plain?: boolean) {
   ws.mergeCells(row, 1, row, lastCol);
   const cell = ws.getCell(row, 1);
   cell.value = text;
-  cell.font = { name: "Arial", bold: true, size: 12, color: { argb: WHITE } };
-  cell.fill = fill(BRAND_MAROON);
+  cell.font = { name: "Arial", bold: true, size: 12, color: { argb: plain ? "FF000000" : WHITE } };
+  if (!plain) cell.fill = fill(BRAND_MAROON);
   cell.alignment = { horizontal: "center", vertical: "middle" };
   ws.getRow(row).height = 22;
 }
@@ -45,8 +45,13 @@ export function exportMarklistXlsx(opts: {
   totals: MarklistTotals;
   includeClassColumn?: boolean;
   filename: string;
+  // Plain mode: same layout and formulas, but no maroon title bands,
+  // no gray header fill, and no green/blue/gold/red grade-cell shading --
+  // just normal white cells with black text, for teachers who want a
+  // plain sheet (e.g. to print on a black-and-white printer).
+  plain?: boolean;
 }) {
-  const { title, schoolName, rows, totals, includeClassColumn, filename } = opts;
+  const { title, schoolName, rows, totals, includeClassColumn, filename, plain } = opts;
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Marklist");
 
@@ -60,15 +65,15 @@ export function exportMarklistXlsx(opts: {
   headers.push("G.TOT");
   const lastCol = headers.length;
 
-  headerBand(ws, 1, lastCol, schoolName);
-  headerBand(ws, 2, lastCol, title);
+  headerBand(ws, 1, lastCol, schoolName, plain);
+  headerBand(ws, 2, lastCol, title, plain);
 
   const headerRow = ws.getRow(3);
   headers.forEach((label, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = label;
     cell.font = { name: "Arial", bold: true, size: 10 };
-    cell.fill = fill(GRAY);
+    if (!plain) cell.fill = fill(GRAY);
     cell.alignment = { horizontal: "center", vertical: "middle" };
     cell.border = thinBorder();
   });
@@ -101,7 +106,7 @@ export function exportMarklistXlsx(opts: {
         // formula as a literal -- it's fixed per exam+subject anyway.
         const scoreRef = `${ws.getColumn(sc).letter}${rowNum}`;
         gradeCell.value = { formula: gradeFormula(scoreRef, String(g.maxMarks)), result: LEVEL_TEXT[g.level ?? ""] ?? "" };
-        gradeCell.fill = fill(LEVEL_FILL[g.level ?? ""] ?? "FFFFFFFF");
+        if (!plain) gradeCell.fill = fill(LEVEL_FILL[g.level ?? ""] ?? "FFFFFFFF");
       }
     });
     row.getCell(gtotCol).value = r.grandTotal;
