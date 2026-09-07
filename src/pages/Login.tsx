@@ -52,7 +52,7 @@ export default function Login() {
           />
           <p className="neu-eyebrow">Kariobangi South Primary &amp; Junior School</p>
           <h1 className="font-display text-2xl sm:text-3xl text-maroon-ink mt-2 leading-snug">
-            8A2 Assessment Portal
+            Assessment Portal
           </h1>
           <p className="text-xs italic text-ink/50 mt-3 max-w-xs mx-auto">
             "{quote}"
@@ -91,9 +91,6 @@ export default function Login() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
           {error && <div className="text-sm text-maroon">{error}</div>}
-          <p className="text-xs text-ink/40 text-center">
-            8A2 teachers
-          </p>
         </div>
       </div>
 
