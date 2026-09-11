@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./lib/auth";
 import Login from "./pages/Login";
+import Landing from "./pages/Landing";
 import Shell from "./components/Shell";
 import AdminRoleChoice from "./components/AdminRoleChoice";
 import Dashboard from "./pages/Dashboard";
@@ -21,6 +22,11 @@ import ReportForms from "./pages/ReportForms";
 export default function App() {
   const { user, ready } = useAuth();
   const [view, setView] = useState("dashboard");
+  // Controls the pre-login flow: Landing first, then the Login form once
+  // "Log in" is pressed. Resets to Landing whenever there's no signed-in
+  // user (fresh visit, or after signing out), so the front door is
+  // always the landing page, not a remembered login form.
+  const [showLogin, setShowLogin] = useState(false);
   // null = "not chosen yet" -- triggers the AdminRoleChoice prompt for
   // admin accounts. Resets on every fresh login (see the effect below)
   // so the prompt shows every time, per school policy, not just once
@@ -31,6 +37,7 @@ export default function App() {
   useEffect(() => {
     setAdminMode(null);
     setView("dashboard");
+    if (!user) setShowLogin(false);
   }, [user?.id]);
 
   if (!ready) {
@@ -41,7 +48,9 @@ export default function App() {
     );
   }
 
-  if (!user) return <Login />;
+  if (!user) {
+    return showLogin ? <Login /> : <Landing onLogin={() => setShowLogin(true)} />;
+  }
 
   if (user.role === "admin" && adminMode === null) {
     return <AdminRoleChoice onChoose={setAdminMode} />;
