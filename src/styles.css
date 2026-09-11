@@ -348,6 +348,25 @@ input.no-spinner {
   }
 }
 
+/* ------------------------------------------------------------
+   Landing page reveal -- one deliberate, orchestrated moment on
+   load (crest + heading + CTA settle in together) rather than
+   scattered per-element hover/scroll animations. Respects
+   prefers-reduced-motion like every other motion in this app.
+   ------------------------------------------------------------ */
+@keyframes landing-reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.landing-reveal {
+  animation: landing-reveal 0.7s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal {
+    animation: none;
+  }
+}
+
 /* NOTE: the mobile bottom tab bar (.bottom-nav / .bottom-nav-item /
    .bottom-nav-item-active) was removed by request -- Shell.tsx no
    longer renders it, and mobile navigation goes exclusively through
