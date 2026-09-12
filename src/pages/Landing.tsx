@@ -10,8 +10,13 @@ import gallery7 from "../assets/gallery/gallery-7.jpeg";
 import gallery8 from "../assets/gallery/gallery-8.jpeg";
 import gallery9 from "../assets/gallery/gallery-9.jpeg";
 import gallery10 from "../assets/gallery/gallery-10.jpeg";
+import gallery11 from "../assets/gallery/gallery-11.jpeg";
+import gallery12 from "../assets/gallery/gallery-12.jpeg";
+import gallery13 from "../assets/gallery/gallery-13.jpeg";
+import gallery14 from "../assets/gallery/gallery-14.jpeg";
+import gallery15 from "../assets/gallery/gallery-15.jpeg";
 
-const SLIDES = [gallery2, gallery3, gallery1, gallery5, gallery4, gallery6, gallery7, gallery8, gallery9, gallery10];
+const SLIDES = [gallery2, gallery3, gallery1, gallery5, gallery4, gallery6, gallery7, gallery8, gallery9, gallery10, gallery11, gallery12, gallery13, gallery14, gallery15];
 const SLIDE_MS = 5000;
 
 // Public landing page shown before Login. Previously the login form was
