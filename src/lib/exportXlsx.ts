@@ -18,9 +18,11 @@ function fill(argb: string): ExcelJS.Fill {
 const LEVEL_TEXT: Record<string, string> = { EE: "E.E", ME: "M.E", AE: "A.E", BE: "B.E" };
 const LEVEL_FILL: Record<string, string> = { EE: GREEN_FILL, ME: BLUE_FILL, AE: AMBER_FILL, BE: RED_FILL };
 
-function gradeFormula(scoreCellRef: string, maxCellRef: string): string {
-  const pct = `((${scoreCellRef}/${maxCellRef})*100)`;
-  return `IF(${pct}>=75,"E.E",IF(${pct}>=50,"M.E",IF(${pct}>=25,"A.E","B.E")))`;
+// The marklist now shows each group's PERCENTAGE directly (not a raw
+// combined score), so grading no longer needs to divide by a max --
+// the cell being checked already IS the percentage.
+function gradeFormula(percentageCellRef: string): string {
+  return `IF(${percentageCellRef}>=75,"E.E",IF(${percentageCellRef}>=50,"M.E",IF(${percentageCellRef}>=25,"A.E","B.E")))`;
 }
 
 function headerBand(ws: ExcelJS.Worksheet, row: number, lastCol: number, text: string, plain?: boolean) {
@@ -91,25 +93,29 @@ export function exportMarklistXlsx(opts: {
     row.getCell(2).value = r.learner.name;
     if (includeClassColumn) row.getCell(3).value = r.className ?? "";
 
+    let rowPercentageTotal = 0;
     r.groups.forEach((g, gi) => {
       const sc = scoreColOf(gi);
       const gc = gradeColOf(gi);
       const scoreCell = row.getCell(sc);
       const gradeCell = row.getCell(gc);
-      if (g.score === null || g.maxMarks === null) {
+      if (g.percentage === null) {
         scoreCell.value = null;
         gradeCell.value = null;
       } else {
-        scoreCell.value = g.score;
-        // A helper column holding the group's max marks isn't shown on
-        // screen elsewhere, so we bake the max directly into the
-        // formula as a literal -- it's fixed per exam+subject anyway.
+        const pct = Math.round(g.percentage * 10) / 10;
+        scoreCell.value = pct;
+        rowPercentageTotal += pct;
         const scoreRef = `${ws.getColumn(sc).letter}${rowNum}`;
-        gradeCell.value = { formula: gradeFormula(scoreRef, String(g.maxMarks)), result: LEVEL_TEXT[g.level ?? ""] ?? "" };
+        gradeCell.value = { formula: gradeFormula(scoreRef), result: LEVEL_TEXT[g.level ?? ""] ?? "" };
         if (!plain) gradeCell.fill = fill(LEVEL_FILL[g.level ?? ""] ?? "FFFFFFFF");
       }
     });
-    row.getCell(gtotCol).value = r.grandTotal;
+    // G.TOT is now the sum of the 9 group percentages (out of a
+    // maximum possible 900), not a sum of raw scores -- this makes it
+    // meaningful regardless of what any individual subject's max marks
+    // is configured as.
+    row.getCell(gtotCol).value = Math.round(rowPercentageTotal * 10) / 10;
 
     for (let c = 1; c <= lastCol; c++) {
       const cell = row.getCell(c);
@@ -124,26 +130,49 @@ export function exportMarklistXlsx(opts: {
   const avgRow = totalRow + 1;
   ws.getRow(totalRow).getCell(2).value = "TOTAL";
   ws.getRow(avgRow).getCell(2).value = "AVERAGE";
+
+  // Fallback "result" values shown before Excel recalculates the
+  // formula: computed here from each group's PERCENTAGE (matching what
+  // the cells actually hold now), not from `totals`, which is still
+  // raw-score-based for the on-screen marklist elsewhere in the app.
+  const percentagesByGroup: Record<string, number[]> = {};
+  groupKeys.forEach((key) => (percentagesByGroup[key] = []));
+  const rowPercentageTotals: number[] = [];
+  rows.forEach((r) => {
+    let total = 0;
+    r.groups.forEach((g, gi) => {
+      const key = groupKeys[gi];
+      if (g.percentage !== null) {
+        const pct = Math.round(g.percentage * 10) / 10;
+        percentagesByGroup[key].push(pct);
+        total += pct;
+      }
+    });
+    rowPercentageTotals.push(Math.round(total * 10) / 10);
+  });
+  const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+  const avg = (arr: number[]) => (arr.length ? Math.round((sum(arr) / arr.length) * 10) / 10 : 0);
+
   groupKeys.forEach((key, gi) => {
     const sc = scoreColOf(gi);
     const letter = ws.getColumn(sc).letter;
     ws.getRow(totalRow).getCell(sc).value = {
       formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})`,
-      result: totals.groupTotals[key] ?? 0,
+      result: Math.round(sum(percentagesByGroup[key]) * 10) / 10,
     };
     ws.getRow(avgRow).getCell(sc).value = {
       formula: `ROUND(AVERAGE(${letter}${firstDataRow}:${letter}${lastDataRow}),1)`,
-      result: totals.groupAverages[key] ?? 0,
+      result: avg(percentagesByGroup[key]),
     };
   });
   const gtotLetter = ws.getColumn(gtotCol).letter;
   ws.getRow(totalRow).getCell(gtotCol).value = {
     formula: `SUM(${gtotLetter}${firstDataRow}:${gtotLetter}${lastDataRow})`,
-    result: totals.grandTotal ?? 0,
+    result: Math.round(sum(rowPercentageTotals) * 10) / 10,
   };
   ws.getRow(avgRow).getCell(gtotCol).value = {
     formula: `ROUND(AVERAGE(${gtotLetter}${firstDataRow}:${gtotLetter}${lastDataRow}),1)`,
-    result: totals.grandAverage ?? 0,
+    result: avg(rowPercentageTotals),
   };
   [totalRow, avgRow].forEach((rn) => {
     for (let c = 1; c <= lastCol; c++) {

@@ -3,6 +3,51 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { Exam, Learner, SchoolClass, Subject, TeacherAssignment, Mark, ExamSubjectConfig, cbcLevel } from "../../types";
 
+// ------------------------------------------------------------------
+// Offline-first mark caching.
+// A teacher entering marks on a weak connection shouldn't lose work
+// the moment a save fails. Every score is written to localStorage the
+// instant it's typed/confirmed, BEFORE the network call is attempted.
+// If the network call fails (offline, timeout, etc.) the entry stays
+// cached and is retried automatically once the browser reports it's
+// back online, or the next time this screen loads. Only cleared from
+// the cache once Supabase confirms the write.
+// Keyed by exam+class+subject so different grids never collide, and
+// scoped to this device only (no cross-device sync needed -- it's
+// just a local safety net until the real save lands).
+// ------------------------------------------------------------------
+interface PendingMark {
+  learnerId: string;
+  subjectId: string;
+  score: number;
+  subjectName: string;
+  cachedAt: string;
+}
+
+function pendingCacheKey(examId: string, classId: string, subjectId: string) {
+  return `jss_pending_marks:${examId}:${classId}:${subjectId}`;
+}
+
+function readPendingCache(key: string): Record<string, PendingMark> {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePendingCache(key: string, cache: Record<string, PendingMark>) {
+  try {
+    if (Object.keys(cache).length === 0) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(cache));
+  } catch {
+    // localStorage unavailable (private mode, quota, etc.) -- the
+    // teacher's marks still get an ordinary save attempt below, this
+    // just means there's no offline safety net for that attempt.
+  }
+}
+
 export default function MarkEntry() {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
@@ -47,9 +92,15 @@ export default function MarkEntry() {
   // autoSaveRow / handleScoreKeyDown below). Keyed by learner id.
   // "saved" entries clear themselves after a couple of seconds via
   // savedTimerRefs; "error" entries stick around until fixed.
-  const [rowStatus, setRowStatus] = useState<Record<string, "saving" | "saved" | "error">>({});
+  const [rowStatus, setRowStatus] = useState<Record<string, "saving" | "saved" | "pending" | "error">>({});
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const savedTimerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Marks cached locally that haven't been confirmed saved to Supabase
+  // yet -- either because the network call failed, or the device is
+  // currently offline. Keyed by learner id, scoped to whatever grid is
+  // currently open (see pendingCacheKey).
+  const [pendingMarks, setPendingMarks] = useState<Record<string, PendingMark>>({});
+  const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [maxMarks, setMaxMarks] = useState<ExamSubjectConfig | null>(null);
   const [maxMarksDraft, setMaxMarksDraft] = useState("100");
   const [maxMarksPartner, setMaxMarksPartner] = useState<ExamSubjectConfig | null>(null);
@@ -66,6 +117,27 @@ export default function MarkEntry() {
   useEffect(() => {
     loadContext();
   }, []);
+
+  // Retry every cached-but-unconfirmed mark for the current grid the
+  // moment the browser reports it's back online. This is the whole
+  // point of the local cache: connectivity coming back is what turns
+  // "pending" into "saved" without the teacher having to do anything.
+  useEffect(() => {
+    function goOnline() {
+      setIsOnline(true);
+      flushPending();
+    }
+    function goOffline() {
+      setIsOnline(false);
+    }
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId, classId, subjectId, activeHalf]);
 
   async function loadContext() {
     if (!supabase || !user) return;
@@ -164,6 +236,36 @@ export default function MarkEntry() {
   const singleMatchId =
     search.trim() && visibleLearners.length === 1 ? visibleLearners[0].id : null;
 
+  // Splits the visible list into three sections so a teacher can see
+  // at a glance who's left, rather than scanning a flat alphabetical
+  // list for gaps:
+  //   - needsMark: nothing entered yet
+  //   - pendingSync: entered, but only cached on this device so far
+  //     (offline, or the save to Supabase hasn't succeeded yet)
+  //   - saved: confirmed written to Supabase
+  // A learner only counts as "saved" when the typed value matches
+  // what was actually loaded back from the database -- editing an
+  // already-saved score immediately drops it back to pendingSync until
+  // the new value is confirmed too.
+  const groupedLearners = useMemo(() => {
+    const needsMark: Learner[] = [];
+    const pendingSync: Learner[] = [];
+    const saved: Learner[] = [];
+    visibleLearners.forEach((l) => {
+      const val = activeView.scoreMap[l.id];
+      const hasValue = val !== undefined && val !== "";
+      if (!hasValue) {
+        needsMark.push(l);
+        return;
+      }
+      const persisted = activeView.marksMap[l.id];
+      const confirmed = persisted && String(persisted.score) === val && rowStatus[l.id] !== "pending" && rowStatus[l.id] !== "saving";
+      if (confirmed) saved.push(l);
+      else pendingSync.push(l);
+    });
+    return { needsMark, pendingSync, saved };
+  }, [visibleLearners, activeView.scoreMap, activeView.marksMap, rowStatus]);
+
   async function loadGrid() {
     if (!supabase) return;
     setError("");
@@ -211,7 +313,7 @@ export default function MarkEntry() {
     if (!supabase || !user || !examId || !subjectId) return;
     const val = Number(maxMarksDraft);
     if (Number.isNaN(val) || val <= 0) {
-      setError("Max marks must be a positive number.");
+      setError("Maximum score must be a positive number.");
       return;
     }
     setSavingMax(true);
@@ -230,14 +332,14 @@ export default function MarkEntry() {
       return;
     }
     setMaxMarks(data as ExamSubjectConfig);
-    setStatus("Max marks saved. Scores are now graded as a percentage of this.");
+    setStatus("Maximum score saved. Scores are now graded as a percentage of this.");
   }
 
   async function saveMaxMarksPartner() {
     if (!supabase || !user || !examId || !partnerSubject) return;
     const val = Number(maxMarksPartnerDraft);
     if (Number.isNaN(val) || val <= 0) {
-      setError("Max marks must be a positive number.");
+      setError("Maximum score must be a positive number.");
       return;
     }
     setSavingMaxPartner(true);
@@ -262,7 +364,7 @@ export default function MarkEntry() {
       return;
     }
     setMaxMarksPartner(data as ExamSubjectConfig);
-    setStatus(`Max marks saved for ${partnerSubject.name}.`);
+    setStatus(`Maximum score saved for ${partnerSubject.name}.`);
   }
 
   function updateScore(learnerId: string, value: string) {
@@ -289,12 +391,114 @@ export default function MarkEntry() {
       subjectName: isPartner ? partnerName ?? "" : currentSubject?.name ?? "",
       scoreMap: isPartner ? partnerScores : scores,
       updateScore: isPartner ? updatePartnerScore : updateScore,
+      // The last CONFIRMED-saved value for each learner, as loaded from
+      // Supabase -- used only to tell a truly-saved score apart from
+      // one that's merely typed or cached locally pending sync (see
+      // groupedLearners below). Not touched by typing; only loadGrid
+      // (a real fetch from the database) updates this.
+      marksMap: isPartner ? partnerMarks : marks,
       maxConfig: isPartner ? maxMarksPartner : maxMarks,
       max: isPartner ? effectiveMaxPartner : effectiveMax,
     };
-  }, [isPairedSubject, activeHalf, partnerSubject, partnerName, subjectId, currentSubject, partnerScores, scores, maxMarksPartner, maxMarks, effectiveMaxPartner, effectiveMax]);
+  }, [isPairedSubject, activeHalf, partnerSubject, partnerName, subjectId, currentSubject, partnerScores, scores, partnerMarks, marks, maxMarksPartner, maxMarks, effectiveMaxPartner, effectiveMax]);
 
   const readyToEnter = !!activeView.maxConfig;
+
+  // Load whatever's cached locally for the subject currently on screen,
+  // and immediately try to push it to Supabase in case connectivity is
+  // already back. This runs whenever the visible grid changes (class,
+  // exam, or which half of a paired subject is active) so a teacher
+  // reopening this screen -- even after closing the tab -- never loses
+  // marks that never made it to the database.
+  useEffect(() => {
+    if (!activeView.subjectId || !classId || !examId) {
+      setPendingMarks({});
+      return;
+    }
+    const key = pendingCacheKey(examId, classId, activeView.subjectId);
+    const cached = readPendingCache(key);
+    setPendingMarks(cached);
+    if (Object.keys(cached).length > 0) {
+      // Reflect cached-but-unconfirmed marks in the score inputs so
+      // they're visible immediately, not just once a sync succeeds.
+      Object.values(cached).forEach((pm) => activeView.updateScore(pm.learnerId, String(pm.score)));
+      setRowStatus((s) => {
+        const next = { ...s };
+        Object.keys(cached).forEach((learnerId) => (next[learnerId] = "pending"));
+        return next;
+      });
+      if (navigator.onLine) flushPending();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView.subjectId, classId, examId]);
+
+  // Attempts to push every currently-cached mark for the active
+  // subject to Supabase. Safe to call as often as needed (on
+  // reconnect, on grid load, or right after a save fails) -- anything
+  // that succeeds is removed from the cache, anything that still fails
+  // just stays queued for next time.
+  function flushPending() {
+    const subjId = activeView.subjectId;
+    if (!supabase || !subjId || !classId || !examId) return;
+    const key = pendingCacheKey(examId, classId, subjId);
+    const cache = readPendingCache(key);
+    const entries = Object.values(cache);
+    if (entries.length === 0) return;
+    entries.forEach(async (pm) => {
+      setRowStatus((s) => ({ ...s, [pm.learnerId]: "saving" }));
+      const { error: err } = await supabase!.from("marks").upsert(
+        [
+          {
+            exam_id: examId,
+            learner_id: pm.learnerId,
+            subject_id: pm.subjectId,
+            score: pm.score,
+            entered_by: user!.id,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "exam_id,learner_id,subject_id" }
+      );
+      if (err) {
+        // Still offline or the request failed -- leave it cached and
+        // flagged as pending, it'll be retried on the next reconnect.
+        setRowStatus((s) => ({ ...s, [pm.learnerId]: "pending" }));
+        return;
+      }
+      const current = readPendingCache(key);
+      delete current[pm.learnerId];
+      writePendingCache(key, current);
+      setPendingMarks(current);
+      setRowStatus((s) => ({ ...s, [pm.learnerId]: "saved" }));
+      clearTimeout(savedTimerRefs.current[pm.learnerId]);
+      savedTimerRefs.current[pm.learnerId] = setTimeout(() => {
+        setRowStatus((s) => {
+          if (s[pm.learnerId] !== "saved") return s;
+          const next = { ...s };
+          delete next[pm.learnerId];
+          return next;
+        });
+      }, 1800);
+    });
+  }
+
+  function cachePendingMark(learnerId: string, subjId: string, score: number, subjectName: string) {
+    if (!classId || !examId) return;
+    const key = pendingCacheKey(examId, classId, subjId);
+    const cache = readPendingCache(key);
+    cache[learnerId] = { learnerId, subjectId: subjId, score, subjectName, cachedAt: new Date().toISOString() };
+    writePendingCache(key, cache);
+    setPendingMarks(cache);
+  }
+
+  function clearPendingMark(learnerId: string, subjId: string) {
+    if (!classId || !examId) return;
+    const key = pendingCacheKey(examId, classId, subjId);
+    const cache = readPendingCache(key);
+    delete cache[learnerId];
+    writePendingCache(key, cache);
+    setPendingMarks(cache);
+  }
 
   function focusNextScoreInput(currentLearnerId: string) {
     // Marking straight down the class list (no search active): advance
@@ -331,7 +535,17 @@ export default function MarkEntry() {
   // hard-to-miss confirmation, not just the small per-row flash.
   async function autoSaveRow(learnerId: string, subjectIdToSave: string, score: number, subjectName: string, isLastLearner: boolean) {
     if (!supabase || !user) return;
+    // Cache first, save second: the mark is never at risk of being lost
+    // to a dropped connection, since it's already written to this
+    // device before the network call even starts.
+    cachePendingMark(learnerId, subjectIdToSave, score, subjectName);
     setRowStatus((s) => ({ ...s, [learnerId]: "saving" }));
+    if (!navigator.onLine) {
+      // Don't even attempt the request while known offline -- go
+      // straight to "pending", it'll sync automatically on reconnect.
+      setRowStatus((s) => ({ ...s, [learnerId]: "pending" }));
+      return;
+    }
     const { error: err } = await supabase.from("marks").upsert(
       [
         {
@@ -346,10 +560,15 @@ export default function MarkEntry() {
       { onConflict: "exam_id,learner_id,subject_id" }
     );
     if (err) {
-      setRowStatus((s) => ({ ...s, [learnerId]: "error" }));
-      setRowError((e) => ({ ...e, [learnerId]: err.message }));
+      // A failed request (offline, timeout, server hiccup) is not
+      // treated as a mistake to fix -- the score is still cached
+      // locally and will retry automatically. Only client-side
+      // validation (handled before this function is ever called)
+      // shows as a hard "error".
+      setRowStatus((s) => ({ ...s, [learnerId]: "pending" }));
       return;
     }
+    clearPendingMark(learnerId, subjectIdToSave);
     setRowError((e) => {
       const next = { ...e };
       delete next[learnerId];
@@ -413,7 +632,7 @@ export default function MarkEntry() {
       return;
     }
     if (!activeView.maxConfig) {
-      setError(`Set and save the max marks for ${activeView.subjectName} before entering scores.`);
+      setError(`Set and save the maximum score for ${activeView.subjectName} before entering scores.`);
       return;
     }
     setError("");
@@ -449,12 +668,36 @@ export default function MarkEntry() {
       return;
     }
 
+    // Cache every row locally before attempting the network save, so a
+    // dropped connection partway through "Save All" can't lose marks
+    // that were already validated and ready to go.
+    rows.forEach((r) => cachePendingMark(r.learner_id, r.subject_id, r.score, activeView.subjectName));
+
+    if (!navigator.onLine) {
+      setSaving(false);
+      setStatus(`${rows.length} mark(s) cached on this device — they'll sync automatically once you're back online.`);
+      setRowStatus((s) => {
+        const next = { ...s };
+        rows.forEach((r) => (next[r.learner_id] = "pending"));
+        return next;
+      });
+      return;
+    }
+
     const { error: err } = await supabase.from("marks").upsert(rows, { onConflict: "exam_id,learner_id,subject_id" });
     setSaving(false);
     if (err) {
-      setError(err.message);
+      // Rows stay cached locally (see above) and marked pending rather
+      // than lost -- a retry happens automatically on reconnect.
+      setStatus(`Couldn't reach the server. ${rows.length} mark(s) are saved on this device and will sync automatically.`);
+      setRowStatus((s) => {
+        const next = { ...s };
+        rows.forEach((r) => (next[r.learner_id] = "pending"));
+        return next;
+      });
       return;
     }
+    rows.forEach((r) => clearPendingMark(r.learner_id, r.subject_id));
     setStatus(`Saved ${rows.length} mark(s) for ${activeView.subjectName}.`);
     // Button flashes green + "Saved ✓" for a couple of seconds so
     // pressing Save gives an unmistakable confirmation, not just a
@@ -566,7 +809,7 @@ export default function MarkEntry() {
               )}
 
               <div className="glass-card p-5 mb-5">
-                <div className="text-sm font-medium text-ink mb-2">Max marks for {activeView.subjectName}</div>
+                <div className="text-sm font-medium text-ink mb-2">Maximum score for {activeView.subjectName}</div>
                 <p className="text-xs text-ink/50 mb-3">
                   What was this exam out of? Set it once — every score below is graded as a percentage of this, not out of 100.
                 </p>
@@ -630,7 +873,7 @@ export default function MarkEntry() {
                 {learners.length === 0 ? (
                   <div className="p-6 text-sm text-ink/50">No learners in this class yet.</div>
                 ) : !readyToEnter ? (
-                  <div className="p-6 text-sm text-ink/50">Set the max marks above first.</div>
+                  <div className="p-6 text-sm text-ink/50">Set the maximum score above first.</div>
                 ) : (
                   <>
                     {/* One column of scores at a time (see activeView) --
@@ -653,75 +896,112 @@ export default function MarkEntry() {
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleLearners.map((l) => {
-                          const val = activeView.scoreMap[l.id] ?? "";
-                          const numeric = Number(val);
-                          const valid = val !== "" && !Number.isNaN(numeric);
-                          const pct = valid ? (numeric / (activeView.maxConfig?.max_marks ?? 1)) * 100 : null;
-                          const level = pct !== null ? cbcLevel(pct) : null;
+                        {(() => {
+                          function renderRow(l: Learner) {
+                            const val = activeView.scoreMap[l.id] ?? "";
+                            const numeric = Number(val);
+                            const valid = val !== "" && !Number.isNaN(numeric);
+                            const pct = valid ? (numeric / (activeView.maxConfig?.max_marks ?? 1)) * 100 : null;
+                            const level = pct !== null ? cbcLevel(pct) : null;
+                            // A blank box and an explicit 0 must never look the
+                            // same -- one means "not looked at yet", the other
+                            // means "confirmed absent / genuinely scored zero".
+                            const isBlank = val === "";
+                            return (
+                              <tr
+                                key={l.id}
+                                className={`border-t border-line ${l.id === singleMatchId ? "bg-maroon-50" : ""}`}
+                              >
+                                <td className="px-3 sm:px-5 py-2 text-ink bg-paper sticky left-0 z-10">{l.name}</td>
+                                <td className="px-3 sm:px-5 py-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <input
+                                      ref={(el) => (scoreInputRefs.current[l.id] = el)}
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      max={activeView.maxConfig?.max_marks}
+                                      value={val}
+                                      disabled={!!currentExam?.locked}
+                                      placeholder="—"
+                                      onChange={(e) => {
+                                        activeView.updateScore(l.id, e.target.value);
+                                        // Typing again after a save/error clears the
+                                        // stale indicator instead of leaving a "✓
+                                        // Saved" sitting under a since-edited value.
+                                        setRowStatus((s) => {
+                                          if (!(l.id in s)) return s;
+                                          const next = { ...s };
+                                          delete next[l.id];
+                                          return next;
+                                        });
+                                      }}
+                                      onKeyDown={(e) => handleScoreKeyDown(e, l.id)}
+                                      className={`w-20 sm:w-24 glass-input text-sm disabled:opacity-50 no-spinner transition-shadow duration-300 ${
+                                        rowStatus[l.id] === "saved"
+                                          ? "ring-2 ring-success confirm-pulse"
+                                          : rowStatus[l.id] === "pending"
+                                          ? "ring-2 ring-amber-400"
+                                          : rowStatus[l.id] === "error"
+                                          ? "ring-2 ring-maroon"
+                                          : isBlank
+                                          ? "ring-1 ring-maroon/30"
+                                          : ""
+                                      }`}
+                                    />
+                                    {rowStatus[l.id] === "saving" && <span className="text-[10px] text-ink/40">Saving…</span>}
+                                    {rowStatus[l.id] === "saved" && (
+                                      <span className="text-[10px] text-success">✓ Saved</span>
+                                    )}
+                                    {rowStatus[l.id] === "pending" && (
+                                      <span className="text-[10px] text-amber-600">
+                                        {isOnline ? "Syncing…" : "⏳ Saved on device — will sync"}
+                                      </span>
+                                    )}
+                                    {rowStatus[l.id] === "error" && (
+                                      <span className="text-[10px] text-maroon" title={rowError[l.id]}>
+                                        ⚠ {rowError[l.id] || "Not saved"}
+                                      </span>
+                                    )}
+                                    {isBlank && !rowStatus[l.id] && (
+                                      <span className="text-[10px] text-maroon/70">Not marked</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-3 sm:px-5 py-2 text-xs text-ink/60">{pct !== null ? `${Math.round(pct)}%` : "—"}</td>
+                                <td className="px-3 sm:px-5 py-2">
+                                  {level ? (
+                                    <span className={`neu-badge neu-badge-${level.toLowerCase()}`}>{level}</span>
+                                  ) : (
+                                    <span className="text-xs text-ink/40">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          function divider(label: string, count: number) {
+                            return (
+                              <tr key={`divider-${label}`} className="bg-black/5">
+                                <td colSpan={4} className="px-3 sm:px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink/50">
+                                  {label} ({count})
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          const { needsMark, pendingSync, saved } = groupedLearners;
                           return (
-                            <tr
-                              key={l.id}
-                              className={`border-t border-line ${
-                                l.id === singleMatchId ? "bg-maroon-50" : ""
-                              }`}
-                            >
-                              <td className="px-3 sm:px-5 py-2 text-ink bg-paper sticky left-0 z-10">{l.name}</td>
-                              <td className="px-3 sm:px-5 py-2">
-                                <div className="flex flex-col gap-0.5">
-                                  <input
-                                    ref={(el) => (scoreInputRefs.current[l.id] = el)}
-                                    type="number"
-                                    inputMode="decimal"
-                                    min={0}
-                                    max={activeView.maxConfig?.max_marks}
-                                    value={val}
-                                    disabled={!!currentExam?.locked}
-                                    onChange={(e) => {
-                                      activeView.updateScore(l.id, e.target.value);
-                                      // Typing again after a save/error clears the
-                                      // stale indicator instead of leaving a "✓
-                                      // Saved" sitting under a since-edited value.
-                                      setRowStatus((s) => {
-                                        if (!(l.id in s)) return s;
-                                        const next = { ...s };
-                                        delete next[l.id];
-                                        return next;
-                                      });
-                                    }}
-                                    onKeyDown={(e) => handleScoreKeyDown(e, l.id)}
-                                    className={`w-20 sm:w-24 glass-input text-sm disabled:opacity-50 no-spinner transition-shadow duration-300 ${
-                                      rowStatus[l.id] === "saved"
-                                        ? "ring-2 ring-success confirm-pulse"
-                                        : rowStatus[l.id] === "error"
-                                        ? "ring-2 ring-maroon"
-                                        : ""
-                                    }`}
-                                  />
-                                  {rowStatus[l.id] === "saving" && (
-                                    <span className="text-[10px] text-ink/40">Saving…</span>
-                                  )}
-                                  {rowStatus[l.id] === "saved" && (
-                                    <span className="text-[10px] text-success">✓ Saved</span>
-                                  )}
-                                  {rowStatus[l.id] === "error" && (
-                                    <span className="text-[10px] text-maroon" title={rowError[l.id]}>
-                                      ⚠ {rowError[l.id] || "Not saved"}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-3 sm:px-5 py-2 text-xs text-ink/60">{pct !== null ? `${Math.round(pct)}%` : "—"}</td>
-                              <td className="px-3 sm:px-5 py-2">
-                                {level ? (
-                                  <span className={`neu-badge neu-badge-${level.toLowerCase()}`}>{level}</span>
-                                ) : (
-                                  <span className="text-xs text-ink/40">—</span>
-                                )}
-                              </td>
-                            </tr>
+                            <>
+                              {needsMark.length > 0 && divider("Still needs a mark", needsMark.length)}
+                              {needsMark.map(renderRow)}
+                              {pendingSync.length > 0 && divider("Pending sync", pendingSync.length)}
+                              {pendingSync.map(renderRow)}
+                              {saved.length > 0 && divider("Saved", saved.length)}
+                              {saved.map(renderRow)}
+                            </>
                           );
-                        })}
+                        })()}
                       </tbody>
                     </table>
                     </div>
@@ -739,6 +1019,12 @@ export default function MarkEntry() {
                       {status && (
                         <span className="text-sm text-success bg-success/10 border border-success/20 rounded-full px-3 py-1">
                           ✓ {status}
+                        </span>
+                      )}
+                      {groupedLearners.pendingSync.length > 0 && (
+                        <span className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+                          {isOnline ? "Syncing" : "⏳"} {groupedLearners.pendingSync.length} mark
+                          {groupedLearners.pendingSync.length === 1 ? "" : "s"} saved on this device, not yet on the server
                         </span>
                       )}
                       {error && <span className="text-sm text-maroon">{error}</span>}
