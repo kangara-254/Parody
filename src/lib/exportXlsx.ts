@@ -103,7 +103,7 @@ export function exportMarklistXlsx(opts: {
         scoreCell.value = null;
         gradeCell.value = null;
       } else {
-        const pct = Math.round(g.percentage * 10) / 10;
+        const pct = Math.round(g.percentage);
         scoreCell.value = pct;
         rowPercentageTotal += pct;
         const scoreRef = `${ws.getColumn(sc).letter}${rowNum}`;
@@ -115,7 +115,7 @@ export function exportMarklistXlsx(opts: {
     // maximum possible 900), not a sum of raw scores -- this makes it
     // meaningful regardless of what any individual subject's max marks
     // is configured as.
-    row.getCell(gtotCol).value = Math.round(rowPercentageTotal * 10) / 10;
+    row.getCell(gtotCol).value = Math.round(rowPercentageTotal);
 
     for (let c = 1; c <= lastCol; c++) {
       const cell = row.getCell(c);
@@ -143,22 +143,22 @@ export function exportMarklistXlsx(opts: {
     r.groups.forEach((g, gi) => {
       const key = groupKeys[gi];
       if (g.percentage !== null) {
-        const pct = Math.round(g.percentage * 10) / 10;
+        const pct = Math.round(g.percentage);
         percentagesByGroup[key].push(pct);
         total += pct;
       }
     });
-    rowPercentageTotals.push(Math.round(total * 10) / 10);
+    rowPercentageTotals.push(Math.round(total));
   });
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
-  const avg = (arr: number[]) => (arr.length ? Math.round((sum(arr) / arr.length) * 10) / 10 : 0);
+  const avg = (arr: number[]) => (arr.length ? Math.round(sum(arr) / arr.length) : 0);
 
   groupKeys.forEach((key, gi) => {
     const sc = scoreColOf(gi);
     const letter = ws.getColumn(sc).letter;
     ws.getRow(totalRow).getCell(sc).value = {
       formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})`,
-      result: Math.round(sum(percentagesByGroup[key]) * 10) / 10,
+      result: Math.round(sum(percentagesByGroup[key])),
     };
     ws.getRow(avgRow).getCell(sc).value = {
       formula: `ROUND(AVERAGE(${letter}${firstDataRow}:${letter}${lastDataRow}),1)`,
@@ -168,7 +168,7 @@ export function exportMarklistXlsx(opts: {
   const gtotLetter = ws.getColumn(gtotCol).letter;
   ws.getRow(totalRow).getCell(gtotCol).value = {
     formula: `SUM(${gtotLetter}${firstDataRow}:${gtotLetter}${lastDataRow})`,
-    result: Math.round(sum(rowPercentageTotals) * 10) / 10,
+    result: Math.round(sum(rowPercentageTotals)),
   };
   ws.getRow(avgRow).getCell(gtotCol).value = {
     formula: `ROUND(AVERAGE(${gtotLetter}${firstDataRow}:${gtotLetter}${lastDataRow}),1)`,

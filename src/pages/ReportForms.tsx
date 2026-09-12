@@ -178,7 +178,7 @@ export default function ReportForms() {
         const examMarks = historyMarks.filter((m) => m.exam_id === exam.id && m.learner_id === learner.id);
         const examConfig = historyConfigs.filter((c) => c.exam_id === exam.id);
         const built = buildMarklist([learner], examMarks, subjects, examConfig).rows[0];
-        const percentage = built?.grandMax ? Math.round((built.grandTotal / built.grandMax) * 1000) / 10 : null;
+        const percentage = built?.grandMax ? Math.round((built.grandTotal / built.grandMax) * 100) : null;
         const year = years.find((y) => y.id === exam.academic_year_id)?.year ?? "";
         return {
           label: `${exam.name} T${exam.term} ${year}`,

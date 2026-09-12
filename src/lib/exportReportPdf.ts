@@ -108,11 +108,16 @@ function drawReport(doc: jsPDF, data: ReportFormData, crestDataUrl: string | nul
   y = (doc as any).lastAutoTable.finalY + 12;
 
   // Subject grid
-  const pct = (score: number | null, max: number | null) => (score !== null && max ? Math.round((score / max) * 1000) / 10 : null);
+  const pct = (score: number | null, max: number | null) => (score !== null && max ? Math.round((score / max) * 100) : null);
+  // CRE's full name is too long for this column at this width and
+  // wraps onto a second line, breaking the row's vertical alignment --
+  // shortened ONLY on this printed form. The marklist, results page,
+  // and analysis sheet still show the full name.
+  const displayLabel = (fullLabel: string) => (fullLabel === "Christian Religious Education" ? "Religious Education" : fullLabel);
   const rowsBody = data.row.groups.map((g) => {
     const p = pct(g.score, g.maxMarks);
     return [
-      g.fullLabel,
+      displayLabel(g.fullLabel),
       g.score !== null ? `${g.score} / ${g.maxMarks}` : "—",
       p !== null ? `${p}%` : "—",
       g.level ? LEVEL_TEXT[g.level] : "—",
@@ -120,7 +125,7 @@ function drawReport(doc: jsPDF, data: ReportFormData, crestDataUrl: string | nul
       data.subjectTeacherByGroupKey[g.key] || "—",
     ];
   });
-  const gPct = data.row.grandMax ? Math.round((data.row.grandTotal / data.row.grandMax) * 1000) / 10 : null;
+  const gPct = data.row.grandMax ? Math.round((data.row.grandTotal / data.row.grandMax) * 100) : null;
   const gLevel = data.row.grandMax ? cbcLevel((data.row.grandTotal / data.row.grandMax) * 100) : null;
 
   autoTable(doc, {
@@ -185,15 +190,7 @@ function drawReport(doc: jsPDF, data: ReportFormData, crestDataUrl: string | nul
   doc.setTextColor(...MAROON);
   doc.text("Learner Progress", margin, y);
   y += 8;
-  if (points.length < 2) {
-    doc.setFillColor(248, 243, 244);
-    doc.rect(margin, y, usableW, 30, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...MAROON);
-    doc.text("Building today for a brighter tomorrow.", pageW / 2, y + 18, { align: "center" });
-    y += 40;
-  } else {
+  if (points.length > 0) {
     const labelW = usableW * 0.28;
     const pctW = 40;
     const barW = usableW - labelW - pctW;
