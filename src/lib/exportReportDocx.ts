@@ -174,27 +174,7 @@ function progressGraph(progress: { label: string; percentage: number }[]) {
   const ROW_H = 270;
 
   const rows: TableRow[] = [];
-  if (points.length < 2) {
-    rows.push(new TableRow({
-      height: { value: ROW_H * 6, rule: HeightRule.EXACT },
-      children: [
-        new TableCell({
-          width: { size: USABLE_W, type: WidthType.DXA },
-          columnSpan: 12,
-          verticalAlign: VerticalAlign.CENTER,
-          borders: cellBorders,
-          shading: { type: ShadingType.CLEAR, fill: "F8F3F4" },
-          margins: { top: 120, bottom: 120, left: 120, right: 120 },
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Building today for a brighter tomorrow.", bold: true, size: 17, color: MAROON, font: "Calibri" })],
-            }),
-          ],
-        }),
-      ],
-    }));
-  } else {
+  if (points.length > 0) {
     for (let r = 0; r < 6; r++) {
       const point = points[r];
       if (!point) {
@@ -265,12 +245,14 @@ function buildReportBody(data: ReportFormData, logoBuffer: ArrayBuffer | null): 
     ],
   });
 
+  const displayLabel = (fullLabel: string) => (fullLabel === "Christian Religious Education" ? "Religious Education" : fullLabel);
+
   const dataRows = row.groups.map((g) => {
-    const pct = g.score !== null && g.maxMarks ? Math.round((g.score / g.maxMarks) * 1000) / 10 : null;
+    const pct = g.score !== null && g.maxMarks ? Math.round((g.score / g.maxMarks) * 100) : null;
     const level = g.level;
     return new TableRow({
       children: [
-        dataCell(g.fullLabel, SUBJ_W, { align: AlignmentType.LEFT, bold: true }),
+        dataCell(displayLabel(g.fullLabel), SUBJ_W, { align: AlignmentType.LEFT, bold: true }),
         dataCell(g.score !== null ? `${g.score} / ${g.maxMarks}` : "—", SCORE_W),
         dataCell(pct !== null ? `${pct}%` : "—", PCT_W),
         dataCell(level ? LEVEL_TEXT[level] : "—", LEVEL_W, {
@@ -288,7 +270,7 @@ function buildReportBody(data: ReportFormData, logoBuffer: ArrayBuffer | null): 
     children: [
       dataCell("GRAND TOTAL", SUBJ_W, { align: AlignmentType.LEFT, bold: true }),
       dataCell(`${row.grandTotal} / ${row.grandMax}`, SCORE_W, { bold: true }),
-      dataCell(row.grandMax ? `${Math.round((row.grandTotal / row.grandMax) * 1000) / 10}%` : "—", PCT_W, { bold: true }),
+      dataCell(row.grandMax ? `${Math.round((row.grandTotal / row.grandMax) * 100)}%` : "—", PCT_W, { bold: true }),
       dataCell(row.grandMax ? LEVEL_TEXT[cbcLevel((row.grandTotal / row.grandMax) * 100)] : "—", LEVEL_W, {
         fill: row.grandMax ? LEVEL_FILL[cbcLevel((row.grandTotal / row.grandMax) * 100)] : undefined,
         color: row.grandMax ? LEVEL_COLOR[cbcLevel((row.grandTotal / row.grandMax) * 100)] : undefined,
