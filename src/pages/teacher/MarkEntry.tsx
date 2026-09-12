@@ -236,36 +236,6 @@ export default function MarkEntry() {
   const singleMatchId =
     search.trim() && visibleLearners.length === 1 ? visibleLearners[0].id : null;
 
-  // Splits the visible list into three sections so a teacher can see
-  // at a glance who's left, rather than scanning a flat alphabetical
-  // list for gaps:
-  //   - needsMark: nothing entered yet
-  //   - pendingSync: entered, but only cached on this device so far
-  //     (offline, or the save to Supabase hasn't succeeded yet)
-  //   - saved: confirmed written to Supabase
-  // A learner only counts as "saved" when the typed value matches
-  // what was actually loaded back from the database -- editing an
-  // already-saved score immediately drops it back to pendingSync until
-  // the new value is confirmed too.
-  const groupedLearners = useMemo(() => {
-    const needsMark: Learner[] = [];
-    const pendingSync: Learner[] = [];
-    const saved: Learner[] = [];
-    visibleLearners.forEach((l) => {
-      const val = activeView.scoreMap[l.id];
-      const hasValue = val !== undefined && val !== "";
-      if (!hasValue) {
-        needsMark.push(l);
-        return;
-      }
-      const persisted = activeView.marksMap[l.id];
-      const confirmed = persisted && String(persisted.score) === val && rowStatus[l.id] !== "pending" && rowStatus[l.id] !== "saving";
-      if (confirmed) saved.push(l);
-      else pendingSync.push(l);
-    });
-    return { needsMark, pendingSync, saved };
-  }, [visibleLearners, activeView.scoreMap, activeView.marksMap, rowStatus]);
-
   async function loadGrid() {
     if (!supabase) return;
     setError("");
@@ -403,6 +373,36 @@ export default function MarkEntry() {
   }, [isPairedSubject, activeHalf, partnerSubject, partnerName, subjectId, currentSubject, partnerScores, scores, partnerMarks, marks, maxMarksPartner, maxMarks, effectiveMaxPartner, effectiveMax]);
 
   const readyToEnter = !!activeView.maxConfig;
+
+  // Splits the visible list into three sections so a teacher can see
+  // at a glance who's left, rather than scanning a flat alphabetical
+  // list for gaps:
+  //   - needsMark: nothing entered yet
+  //   - pendingSync: entered, but only cached on this device so far
+  //     (offline, or the save to Supabase hasn't succeeded yet)
+  //   - saved: confirmed written to Supabase
+  // A learner only counts as "saved" when the typed value matches
+  // what was actually loaded back from the database -- editing an
+  // already-saved score immediately drops it back to pendingSync until
+  // the new value is confirmed too.
+  const groupedLearners = useMemo(() => {
+    const needsMark: Learner[] = [];
+    const pendingSync: Learner[] = [];
+    const saved: Learner[] = [];
+    visibleLearners.forEach((l) => {
+      const val = activeView.scoreMap[l.id];
+      const hasValue = val !== undefined && val !== "";
+      if (!hasValue) {
+        needsMark.push(l);
+        return;
+      }
+      const persisted = activeView.marksMap[l.id];
+      const confirmed = persisted && String(persisted.score) === val && rowStatus[l.id] !== "pending" && rowStatus[l.id] !== "saving";
+      if (confirmed) saved.push(l);
+      else pendingSync.push(l);
+    });
+    return { needsMark, pendingSync, saved };
+  }, [visibleLearners, activeView.scoreMap, activeView.marksMap, rowStatus]);
 
   // Load whatever's cached locally for the subject currently on screen,
   // and immediately try to push it to Supabase in case connectivity is
