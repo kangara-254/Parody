@@ -3,11 +3,9 @@ import crestMaroon from "../assets/school-crest-maroon.png";
 import gallery1 from "../assets/gallery/gallery-1.jpeg";
 import gallery2 from "../assets/gallery/gallery-2.jpeg";
 import gallery3 from "../assets/gallery/gallery-3.jpeg";
-import gallery4 from "../assets/gallery/gallery-4.jpeg";
 import gallery5 from "../assets/gallery/gallery-5.jpeg";
 import gallery6 from "../assets/gallery/gallery-6.jpeg";
 import gallery7 from "../assets/gallery/gallery-7.jpeg";
-import gallery8 from "../assets/gallery/gallery-8.jpeg";
 import gallery9 from "../assets/gallery/gallery-9.jpeg";
 import gallery10 from "../assets/gallery/gallery-10.jpeg";
 import gallery11 from "../assets/gallery/gallery-11.jpeg";
@@ -16,7 +14,13 @@ import gallery13 from "../assets/gallery/gallery-13.jpeg";
 import gallery14 from "../assets/gallery/gallery-14.jpeg";
 import gallery15 from "../assets/gallery/gallery-15.jpeg";
 
-const SLIDES = [gallery2, gallery3, gallery1, gallery5, gallery4, gallery6, gallery7, gallery8, gallery9, gallery10, gallery11, gallery12, gallery13, gallery14, gallery15];
+// gallery-4 and gallery-8 are portrait-orientation photos -- the hero
+// slideshow below force-crops every slide to a wide landscape box
+// (object-cover), which would slice through people's heads/feet on a
+// vertical photo. Left out of the rotation entirely rather than
+// shown badly cropped. Still on disk in src/assets/gallery if a
+// future portrait-friendly layout wants them.
+const SLIDES = [gallery2, gallery3, gallery1, gallery5, gallery6, gallery7, gallery9, gallery10, gallery11, gallery12, gallery13, gallery14, gallery15];
 const SLIDE_MS = 5000;
 
 // Public landing page shown before Login. Previously the login form was

@@ -143,25 +143,62 @@ function ClassSubmissionList({
     }
   }, [examId]);
 
+  // A class only counts as "submitted" once every subject taught to it
+  // has a mark for every one of its active learners -- not the moment
+  // a single mark exists anywhere in the class. Previously this
+  // checked "does any mark at all exist for any learner in this
+  // class", which flipped a whole class to "submitted" after just one
+  // score, in one subject, for one student.
   async function check() {
     if (!supabase) return;
     setLoading(true);
     const classIds = examClasses.filter((x) => x.exam_id === examId).map((x) => x.class_id);
     const sittingClasses = classIds.map((id) => classes.find((c) => c.id === id)).filter((c): c is SchoolClass => !!c);
+    const safeClassIds = classIds.length ? classIds : ["00000000-0000-0000-0000-000000000000"];
 
-    const [learnersQ, marksQ] = await Promise.all([
-      supabase
-        .from("learners")
-        .select("id, class_id")
-        .in("class_id", classIds.length ? classIds : ["00000000-0000-0000-0000-000000000000"])
-        .eq("status", "active"),
-      supabase.from("marks").select("learner_id").eq("exam_id", examId),
+    const [learnersQ, marksQ, assignmentsQ] = await Promise.all([
+      supabase.from("learners").select("id, class_id").in("class_id", safeClassIds).eq("status", "active"),
+      supabase.from("marks").select("learner_id, subject_id, learners!inner(class_id)").eq("exam_id", examId).in("learners.class_id", safeClassIds),
+      supabase.from("teacher_assignments").select("class_id, subject_id").in("class_id", safeClassIds),
     ]);
-    const learnerClassMap = new Map((learnersQ.data || []).map((l: any) => [l.id, l.class_id]));
-    const classesWithMarks = new Set((marksQ.data || []).map((m: any) => learnerClassMap.get(m.learner_id)).filter(Boolean));
 
-    setPending(sittingClasses.filter((c) => !classesWithMarks.has(c.id)));
-    setSubmitted(sittingClasses.filter((c) => classesWithMarks.has(c.id)));
+    // How many active learners each class has.
+    const activeLearnerCountByClass = new Map<string, number>();
+    (learnersQ.data || []).forEach((l: any) => {
+      activeLearnerCountByClass.set(l.class_id, (activeLearnerCountByClass.get(l.class_id) ?? 0) + 1);
+    });
+
+    // Which subjects are actually taught to each class (a class is only
+    // "done" once ALL of its own subjects are fully marked -- classes
+    // don't all take the same subjects, e.g. different assignments).
+    const subjectsByClass = new Map<string, Set<string>>();
+    (assignmentsQ.data || []).forEach((a: any) => {
+      if (!subjectsByClass.has(a.class_id)) subjectsByClass.set(a.class_id, new Set());
+      subjectsByClass.get(a.class_id)!.add(a.subject_id);
+    });
+
+    // How many marks exist per (class, subject) pair.
+    const markCountByClassSubject = new Map<string, number>();
+    (marksQ.data || []).forEach((m: any) => {
+      const cid = m.learners?.class_id;
+      if (!cid) return;
+      const key = `${cid}::${m.subject_id}`;
+      markCountByClassSubject.set(key, (markCountByClassSubject.get(key) ?? 0) + 1);
+    });
+
+    function isClassComplete(classId: string): boolean {
+      const activeCount = activeLearnerCountByClass.get(classId) ?? 0;
+      const subjects = subjectsByClass.get(classId);
+      if (activeCount === 0 || !subjects || subjects.size === 0) return false;
+      for (const subjectId of subjects) {
+        const count = markCountByClassSubject.get(`${classId}::${subjectId}`) ?? 0;
+        if (count < activeCount) return false;
+      }
+      return true;
+    }
+
+    setPending(sittingClasses.filter((c) => !isClassComplete(c.id)));
+    setSubmitted(sittingClasses.filter((c) => isClassComplete(c.id)));
     setLoading(false);
   }
 

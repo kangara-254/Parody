@@ -6,6 +6,16 @@ export interface MarklistGroupResult {
   fullLabel: string;
   score: number | null; // raw combined score, null if no marks entered for this group yet
   maxMarks: number | null; // combined max marks for the group (sum of each subject's configured max)
+  // The percentage actually used for grading and shown on the
+  // marklist. For a standalone subject this is simply its own score
+  // as a percentage of its own max. For a paired subject (English,
+  // Kiswahili) this is the AVERAGE of each half's own percentage --
+  // e.g. English's % averaged with Composition's % -- not the
+  // combined raw score divided by a combined max. This keeps the
+  // number meaningful regardless of how an admin configures each
+  // half's max marks (they don't need to add up to anything in
+  // particular).
+  percentage: number | null;
   level: string | null;
 }
 
@@ -54,12 +64,25 @@ export function buildMarklist(
       const ids = g.subjectNames.map((n) => subjectIdByName.get(n)).filter(Boolean) as string[];
       const groupMarks = learnerMarks.filter((m) => ids.includes(m.subject_id));
       const groupMax = ids.reduce((sum, id) => sum + maxMarksFor(id, maxBySubjectId), 0);
-      if (groupMarks.length === 0) return { key: g.key, label: g.label, fullLabel: g.fullLabel, score: null, maxMarks: groupMax, level: null };
+      if (groupMarks.length === 0) {
+        return { key: g.key, label: g.label, fullLabel: g.fullLabel, score: null, maxMarks: groupMax, percentage: null, level: null };
+      }
       const score = groupMarks.reduce((sum, m) => sum + Number(m.score), 0);
       grandTotal += score;
       grandMax += groupMax;
-      const percentage = groupMax > 0 ? (score / groupMax) * 100 : 0;
-      return { key: g.key, label: g.label, fullLabel: g.fullLabel, score, maxMarks: groupMax, level: cbcLevel(percentage) };
+      // Each individual subject's own percentage, then simple-averaged
+      // across the group. For a standalone subject (ids.length === 1)
+      // this is exactly the same number as before -- only paired
+      // subjects (English, Kiswahili) are computed differently now.
+      const subjectPercentages = ids.map((id) => {
+        const mark = groupMarks.find((m) => m.subject_id === id);
+        const max = maxMarksFor(id, maxBySubjectId);
+        return mark && max > 0 ? (Number(mark.score) / max) * 100 : null;
+      }).filter((p): p is number => p !== null);
+      const percentage = subjectPercentages.length
+        ? subjectPercentages.reduce((sum, p) => sum + p, 0) / subjectPercentages.length
+        : 0;
+      return { key: g.key, label: g.label, fullLabel: g.fullLabel, score, maxMarks: groupMax, percentage, level: cbcLevel(percentage) };
     });
     return { learner, className: learner.className, groups, grandTotal, grandMax };
   });

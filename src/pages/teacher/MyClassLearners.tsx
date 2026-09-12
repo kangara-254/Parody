@@ -123,14 +123,34 @@ export function ClassTeachersStatus({ classObj }: { classObj: SchoolClass }) {
     else setSubmittedSubjectIds(new Set());
   }, [examId, assignments]);
 
+  // A subject only counts as "submitted" once EVERY currently-active
+  // learner in this class has a mark for it -- not the moment a single
+  // mark exists. Previously this checked "does at least one mark
+  // exist for this subject in this class", which flipped a subject to
+  // "Submitted" after just one learner's score was entered, well
+  // before the teacher was actually done.
   async function loadSubmissions() {
     if (!supabase) return;
-    const { data } = await supabase
-      .from("marks")
-      .select("subject_id, learner_id, learners!inner(class_id)")
-      .eq("exam_id", examId)
-      .eq("learners.class_id", classObj.id);
-    setSubmittedSubjectIds(new Set((data || []).map((m: any) => m.subject_id)));
+    const [learnersQ, marksQ] = await Promise.all([
+      supabase.from("learners").select("id").eq("class_id", classObj.id).eq("status", "active"),
+      supabase
+        .from("marks")
+        .select("subject_id, learner_id, learners!inner(class_id)")
+        .eq("exam_id", examId)
+        .eq("learners.class_id", classObj.id),
+    ]);
+    const activeLearnerCount = (learnersQ.data || []).length;
+    const countBySubject = new Map<string, number>();
+    (marksQ.data || []).forEach((m: any) => {
+      countBySubject.set(m.subject_id, (countBySubject.get(m.subject_id) ?? 0) + 1);
+    });
+    const complete = new Set<string>();
+    if (activeLearnerCount > 0) {
+      countBySubject.forEach((count, subjectId) => {
+        if (count >= activeLearnerCount) complete.add(subjectId);
+      });
+    }
+    setSubmittedSubjectIds(complete);
   }
 
   // One row per (teacher, subject) assignment, excluding the silent
