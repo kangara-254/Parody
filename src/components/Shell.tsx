@@ -34,6 +34,8 @@ const adminGroups: NavGroup[] = [
       { key: "promote", label: "Promote Classes" },
       { key: "classhistory", label: "Class History" },
       { key: "exams", label: "Assessments" },
+      { key: "examstudio", label: "Exam & Notes Generator" },
+      { key: "contentbank", label: "Content Bank" },
     ],
   },
   {
@@ -100,6 +102,7 @@ export default function Shell({
   const teacherItems: NavItem[] = [
     { key: "dashboard", label: "Dashboard" },
     { key: "marks", label: "Enter Marks" },
+    { key: "examstudio", label: "Exam & Notes Generator" },
     { key: "results", label: "Marklist" },
     { key: "myclass", label: "My Class" },
     { key: "reportforms", label: "Report Forms" },
