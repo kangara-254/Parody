@@ -986,3 +986,59 @@ end;
 $$;
 
 grant execute on function public.update_own_name(text) to authenticated;
+
+-- ============================================================
+-- CONTENT BANK + PDF GENERATION (MERGED EXAM ENGINE)
+-- ============================================================
+-- Questions and notes live in Supabase. The frontend assembles the
+-- selected records into JSON only when a PDF is requested; teachers do
+-- not need to create JSON files manually.
+create table if not exists public.question_bank (
+  id uuid primary key default gen_random_uuid(),
+  grade text not null,
+  subject text not null,
+  strand text,
+  sub_strand text,
+  learning_area text,
+  question_type text not null default 'mcq' check (question_type in ('mcq','structured','short_answer')),
+  question_text text not null,
+  options jsonb not null default '[]'::jsonb,
+  correct_answer text,
+  marks numeric not null default 1 check (marks > 0),
+  difficulty text default 'medium' check (difficulty in ('easy','medium','hard')),
+  parts jsonb not null default '[]'::jsonb,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists question_bank_filter_idx on public.question_bank(grade, subject, strand, sub_strand, learning_area);
+create index if not exists question_bank_active_idx on public.question_bank(active);
+
+create table if not exists public.notes_bank (
+  id uuid primary key default gen_random_uuid(),
+  grade text not null,
+  subject text not null,
+  strand text,
+  sub_strand text,
+  learning_area text,
+  title text not null,
+  content text not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notes_bank_filter_idx on public.notes_bank(grade, subject, strand, sub_strand, learning_area);
+create index if not exists notes_bank_active_idx on public.notes_bank(active);
+
+alter table public.question_bank enable row level security;
+alter table public.notes_bank enable row level security;
+
+drop policy if exists "question bank select authenticated" on public.question_bank;
+create policy "question bank select authenticated" on public.question_bank for select to authenticated using (true);
+drop policy if exists "question bank write admin" on public.question_bank;
+create policy "question bank write admin" on public.question_bank for all to authenticated using (public.current_is_admin()) with check (public.current_is_admin());
+
+drop policy if exists "notes bank select authenticated" on public.notes_bank;
+create policy "notes bank select authenticated" on public.notes_bank for select to authenticated using (true);
+drop policy if exists "notes bank write admin" on public.notes_bank;
+create policy "notes bank write admin" on public.notes_bank for all to authenticated using (public.current_is_admin()) with check (public.current_is_admin());

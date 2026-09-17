@@ -1,0 +1,230 @@
+{
+  "school": "KARIOBANGI SOUTH JUNIOR SCHOOL",
+  "subject": "Mathematics",
+  "grade": "GRADE 8",
+  "strand": "Number, Algebra and Geometry",
+  "subject_code": "MAT-801",
+  "duration": "1 Hour",
+  "maximum_marks": 30,
+  "footer": "JUNIOR SCHOOL MATHEMATICS \u2014 30 MARKS",
+  "section_a": {
+    "marks": 10,
+    "instructions": "Answer all questions. Choose the correct answer from A, B, C or D.",
+    "questions": [
+      {
+        "number": 1,
+        "marks": 1,
+        "text": "Which fraction is equivalent to [[frac:3|4]]?",
+        "options": [
+          "[[frac:6|8]]",
+          "[[frac:4|7]]",
+          "[[frac:8|12]]",
+          "[[frac:9|16]]"
+        ],
+        "answer": "A"
+      },
+      {
+        "number": 2,
+        "marks": 1,
+        "text": "Calculate [[frac:2|3]] + [[frac:1|6]].",
+        "options": [
+          "[[frac:1|2]]",
+          "[[frac:5|6]]",
+          "[[frac:3|9]]",
+          "[[frac:4|9]]"
+        ],
+        "answer": "B"
+      },
+      {
+        "number": 3,
+        "marks": 1,
+        "text": "Which symbol makes 7 ___ 9 a true statement?",
+        "options": [
+          "\u2264",
+          "\u2265",
+          "=",
+          "\u2260"
+        ],
+        "answer": "C"
+      },
+      {
+        "number": 4,
+        "marks": 1,
+        "text": "Evaluate 3\u00b2 + 4.",
+        "options": [
+          "10",
+          "12",
+          "13",
+          "14"
+        ],
+        "answer": "D"
+      },
+      {
+        "number": 5,
+        "marks": 1,
+        "text": "What is the value of \u221a49?",
+        "options": [
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "answer": "B"
+      },
+      {
+        "number": 6,
+        "marks": 1,
+        "text": "An angle measuring 60\u00b0 is a:",
+        "options": [
+          "right angle",
+          "acute angle",
+          "obtuse angle",
+          "reflex angle"
+        ],
+        "answer": "B"
+      },
+      {
+        "number": 7,
+        "marks": 1,
+        "text": "What is 25% of 80?",
+        "options": [
+          "10",
+          "15",
+          "20",
+          "25"
+        ],
+        "answer": "C"
+      },
+      {
+        "number": 8,
+        "marks": 1,
+        "text": "The expression 3x + 2 contains which variable?",
+        "options": [
+          "2",
+          "3",
+          "x",
+          "5"
+        ],
+        "answer": "C"
+      },
+      {
+        "number": 9,
+        "marks": 1,
+        "text": "Which point lies on the x-axis?",
+        "options": [
+          "(0,4)",
+          "(4,0)",
+          "(4,4)",
+          "(-2,3)"
+        ],
+        "answer": "B"
+      },
+      {
+        "number": 10,
+        "marks": 1,
+        "text": "A triangle has angles 50\u00b0 and 60\u00b0. Find the third angle.",
+        "options": [
+          "60\u00b0",
+          "70\u00b0",
+          "80\u00b0",
+          "90\u00b0"
+        ],
+        "answer": "B"
+      }
+    ]
+  },
+  "section_b": {
+    "marks": 20,
+    "instructions": "Answer all questions. Show your working clearly where required.",
+    "questions": [
+      {
+        "number": 11,
+        "marks": 5,
+        "text": "Fractions and operations.",
+        "parts": [
+          {
+            "label": "a.",
+            "marks": 2,
+            "text": "Simplify [[frac:18|24]].",
+            "answer": "3/4 (divide numerator and denominator by 6)"
+          },
+          {
+            "label": "b.",
+            "marks": 3,
+            "text": "Calculate [[frac:3|4]] + [[frac:2|3]] and give your answer in its simplest form.",
+            "answer": "1 5/12 (common denominator 12: 9/12 + 8/12 = 17/12 = 1 5/12)"
+          }
+        ]
+      },
+      {
+        "number": 12,
+        "marks": 5,
+        "text": "Algebraic expressions.",
+        "parts": [
+          {
+            "label": "a.",
+            "marks": 2,
+            "text": "Simplify 3x + 5x \u2212 2.",
+            "answer": "8x - 2"
+          },
+          {
+            "label": "b.",
+            "marks": 3,
+            "text": "If x = 4, evaluate 2x\u00b2 + 3.",
+            "answer": "35 (2(16) + 3 = 35)"
+          }
+        ]
+      },
+      {
+        "number": 13,
+        "marks": 5,
+        "text": "Geometry and measurement.",
+        "parts": [
+          {
+            "label": "a.",
+            "marks": 2,
+            "text": "Calculate the area of the triangle.",
+            "diagram": {
+              "type": "triangle"
+            },
+            "answer": "Base x height / 2, using the marked values"
+          },
+          {
+            "label": "b.",
+            "marks": 3,
+            "text": "State whether the marked angle is acute, right or obtuse.",
+            "diagram": {
+              "type": "angle"
+            },
+            "answer": "Acute angle (60\u00b0 < 90\u00b0)"
+          }
+        ]
+      },
+      {
+        "number": 14,
+        "marks": 5,
+        "text": "Coordinates and number patterns.",
+        "parts": [
+          {
+            "label": "a.",
+            "marks": 2,
+            "text": "Use the coordinate diagram to identify the coordinates of the second plotted point.",
+            "diagram": {
+              "type": "coordinate"
+            },
+            "answer": "(105, 55) \u2014 read directly off the plotted point"
+          },
+          {
+            "label": "b.",
+            "marks": 3,
+            "text": "Continue the pattern 3, 6, 12, 24, ___, ___ and state the rule.",
+            "answer": "48, 96; rule: multiply the previous term by 2"
+          }
+        ]
+      }
+    ]
+  },
+  "student_name": "ANN MAINA",
+  "student_class": "8 BLUE",
+  "teacher": "MR. OTIENO"
+}

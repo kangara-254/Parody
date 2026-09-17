@@ -18,6 +18,8 @@ import ClassHistoryPage from "./pages/admin/ClassHistory";
 import MarkEntry from "./pages/teacher/MarkEntry";
 import MyClassLearners from "./pages/teacher/MyClassLearners";
 import ReportForms from "./pages/ReportForms";
+import ExamStudio from "./pages/admin/ExamStudio";
+import ContentBank from "./pages/admin/ContentBank";
 
 export default function App() {
   const { user, ready } = useAuth();
@@ -77,11 +79,14 @@ export default function App() {
       if (view === "promote") return <PromotePage />;
       if (view === "classhistory") return <ClassHistoryPage />;
       if (view === "exams") return <ExamsPage />;
+      if (view === "examstudio") return <ExamStudio />;
+      if (view === "contentbank") return <ContentBank />;
       if (view === "overall") return <OverallMarklist />;
     }
 
     if (effectiveRole === "teacher") {
       if (view === "marks") return <MarkEntry />;
+      if (view === "examstudio") return <ExamStudio />;
       if (view === "myclass") return <MyClassLearners />;
     }
 
