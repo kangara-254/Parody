@@ -315,6 +315,7 @@ drop policy if exists "teachers select own or admin" on public.teachers;
 -- rendered blank names for anyone who wasn't admin. Writes are still
 -- admin-only (see the three policies below), so this only affects who
 -- can READ the roster, not who can change it.
+drop policy if exists "teachers select all logged in" on public.teachers;
 create policy "teachers select all logged in" on public.teachers for select
   to authenticated using (true);
 -- MIGRATION -- if you already ran this file with the old restrictive
@@ -536,6 +537,7 @@ create trigger assignments_pair_learning_area after insert on public.teacher_ass
 -- being able to browse every other subject/class's results).
 grant select, insert, update, delete on public.marks to authenticated;
 drop policy if exists "marks select all logged in" on public.marks;
+drop policy if exists "marks select admin, class teacher, or own entries" on public.marks;
 create policy "marks select admin, class teacher, or own entries" on public.marks for select
   to authenticated using (
     public.current_is_admin()
