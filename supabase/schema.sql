@@ -1035,6 +1035,9 @@ create index if not exists notes_bank_active_idx on public.notes_bank(active);
 alter table public.question_bank enable row level security;
 alter table public.notes_bank enable row level security;
 
+grant select, insert, update, delete on public.question_bank to authenticated;
+grant select, insert, update, delete on public.notes_bank to authenticated;
+
 drop policy if exists "question bank select authenticated" on public.question_bank;
 create policy "question bank select authenticated" on public.question_bank for select to authenticated using (true);
 drop policy if exists "question bank write admin" on public.question_bank;
