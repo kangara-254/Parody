@@ -25,3 +25,16 @@ createRoot(document.getElementById("root")!).render(
     </SentryErrorBoundary>
   </StrictMode>
 );
+
+// Register the PWA service worker so the app is installable on Android
+// ("Add to Home Screen" / install prompt) without going through the Play
+// Store. Only in production builds — skips the noise of caching Vite's
+// dev server output while working locally.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.error("Service worker registration failed:", err);
+    });
+  });
+}
+
