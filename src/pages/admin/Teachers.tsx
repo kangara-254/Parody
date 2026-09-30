@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState, ListSkeleton, FocusFormButton } from "../../components/ui";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Teacher, SchoolClass, Subject, TeacherAssignment } from "../../types";
@@ -223,10 +224,7 @@ export default function TeachersPage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Teachers</h1>
-        <p className="text-sm text-ink/60 mt-1">Manage staff accounts and assign classes and subjects.</p>
-      </header>
+      <PageHeader title="Teachers" description="Manage staff accounts and assign classes and subjects." />
 
       <div className="glass-card p-5 mb-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -308,9 +306,9 @@ export default function TeachersPage() {
           ))}
         </div>
         {loading ? (
-          <div className="p-6 text-sm text-ink/50">Loading…</div>
+          <ListSkeleton />
         ) : visibleTeachers.length === 0 ? (
-          <div className="p-6 text-sm text-ink/50">No teachers here yet.</div>
+          <EmptyState title="No teachers yet" hint="Teachers you add will appear here." action={<FocusFormButton label="Add a teacher" />} />
         ) : (
           <ul className="divide-y divide-line mt-3">
             {visibleTeachers.map((t) => {

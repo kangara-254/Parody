@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState } from "../../components/ui";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Exam, Learner, SchoolClass, Subject, Mark, ExamSubjectConfig, AcademicYear, CBC_COLORS } from "../../types";
@@ -125,10 +126,7 @@ export default function OverallMarklist() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Overall Marklist</h1>
-        <p className="text-sm text-ink/60 mt-1">Every class in a grade, ranked together — e.g. all streams in Grade 8 as one list.</p>
-      </header>
+      <PageHeader title="Overall Marklist" description="Every class in a grade, ranked together — e.g. all streams in Grade 8 as one list." />
 
       <div className="glass-card p-5 mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <select value={grade} onChange={(e) => setGrade(e.target.value)} className="glass-input">
@@ -180,35 +178,35 @@ export default function OverallMarklist() {
                 </div>
               </div>
               {marklist.rows.length === 0 ? (
-                <div className="p-6 text-sm text-ink/50">No marks recorded yet across this grade for this exam.</div>
+                <EmptyState title="No marks recorded yet" hint="Marks appear here once teachers enter them for this grade and exam." />
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="data-table w-full text-xs">
                     <thead>
                       <tr className="bg-paper text-left">
-                        <th className="px-3 py-2 font-medium text-ink/60">#</th>
-                        <th className="px-3 py-2 font-medium text-ink/60">Name</th>
-                        <th className="px-3 py-2 font-medium text-ink/60">Class</th>
+                        <th className="px-3 py-3 font-medium text-ink/60">#</th>
+                        <th className="px-3 py-3 font-medium text-ink/60">Name</th>
+                        <th className="px-3 py-3 font-medium text-ink/60">Class</th>
                         {SUBJECT_GROUPS.map((g) => (
-                          <th key={g.key} className="px-2 py-2 font-medium text-ink/60 text-center whitespace-nowrap">
+                          <th key={g.key} className="px-2 py-3 font-medium text-ink/60 text-center whitespace-nowrap">
                             {g.label}
                           </th>
                         ))}
-                        <th className="px-3 py-2 font-medium text-ink/60">G.Tot</th>
+                        <th className="px-3 py-3 font-medium text-ink/60">G.Tot</th>
                       </tr>
                     </thead>
                     <tbody>
                       {marklist.rows.map((r) => (
                         <tr key={r.learner.id} className="border-t border-line">
-                          <td className="px-3 py-1.5 text-ink/70">{r.rank}</td>
-                          <td className="px-3 py-1.5 text-ink whitespace-nowrap">{r.learner.name}</td>
-                          <td className="px-3 py-1.5 text-ink/60">{r.className}</td>
+                          <td className="px-3 py-2.5 text-ink/70">{r.rank}</td>
+                          <td className="px-3 py-2.5 text-ink whitespace-nowrap">{r.learner.name}</td>
+                          <td className="px-3 py-2.5 text-ink/60">{r.className}</td>
                           {r.groups.map((g) => (
-                            <td key={g.key} className="px-1.5 py-1.5 text-center text-ink">
+                            <td key={g.key} className="px-1.5 py-2.5 text-center text-ink">
                               {g.score ?? "—"} <span className="text-ink/40">{g.level ?? ""}</span>
                             </td>
                           ))}
-                          <td className="px-3 py-1.5 text-ink font-medium">{r.grandTotal}</td>
+                          <td className="px-3 py-2.5 text-ink font-medium">{r.grandTotal}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -234,28 +232,28 @@ export default function OverallMarklist() {
                 </div>
               </div>
               {marklist.rows.length === 0 ? (
-                <div className="p-6 text-sm text-ink/50">No marks recorded yet across this grade for this exam.</div>
+                <EmptyState title="No marks recorded yet" hint="Marks appear here once teachers enter them for this grade and exam." />
               ) : (
-                <table className="w-full text-sm">
+                <table className="data-table w-full text-sm">
                   <thead>
                     <tr className="bg-paper text-left">
-                      <th className="px-4 py-2 font-medium text-ink/60">Learning Area</th>
-                      <th className="px-4 py-2 font-medium text-center" style={{ color: CBC_COLORS.EE }}>E.E</th>
-                      <th className="px-4 py-2 font-medium text-center" style={{ color: CBC_COLORS.ME }}>M.E</th>
-                      <th className="px-4 py-2 font-medium text-center" style={{ color: CBC_COLORS.AE }}>A.E</th>
-                      <th className="px-4 py-2 font-medium text-center" style={{ color: CBC_COLORS.BE }}>B.E</th>
-                      <th className="px-4 py-2 font-medium text-ink/60 text-center">Total</th>
+                      <th className="px-4 py-3 font-medium text-ink/60">Learning Area</th>
+                      <th className="px-4 py-3 font-medium text-center" style={{ color: CBC_COLORS.EE }}>E.E</th>
+                      <th className="px-4 py-3 font-medium text-center" style={{ color: CBC_COLORS.ME }}>M.E</th>
+                      <th className="px-4 py-3 font-medium text-center" style={{ color: CBC_COLORS.AE }}>A.E</th>
+                      <th className="px-4 py-3 font-medium text-center" style={{ color: CBC_COLORS.BE }}>B.E</th>
+                      <th className="px-4 py-3 font-medium text-ink/60 text-center">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analysis.map((row) => (
                       <tr key={row.key} className="border-t border-line">
-                        <td className="px-4 py-2 text-ink">{row.label}</td>
-                        <td className="px-4 py-2 text-center" style={{ background: `${CBC_COLORS.EE}22` }}>{row.ee}</td>
-                        <td className="px-4 py-2 text-center" style={{ background: `${CBC_COLORS.ME}22` }}>{row.me}</td>
-                        <td className="px-4 py-2 text-center" style={{ background: `${CBC_COLORS.AE}22` }}>{row.ae}</td>
-                        <td className="px-4 py-2 text-center" style={{ background: `${CBC_COLORS.BE}22` }}>{row.be}</td>
-                        <td className="px-4 py-2 text-center text-ink font-medium">{row.total}</td>
+                        <td className="px-4 py-2.5 text-ink">{row.label}</td>
+                        <td className="px-4 py-2.5 text-center" style={{ background: `${CBC_COLORS.EE}22` }}>{row.ee}</td>
+                        <td className="px-4 py-2.5 text-center" style={{ background: `${CBC_COLORS.ME}22` }}>{row.me}</td>
+                        <td className="px-4 py-2.5 text-center" style={{ background: `${CBC_COLORS.AE}22` }}>{row.ae}</td>
+                        <td className="px-4 py-2.5 text-center" style={{ background: `${CBC_COLORS.BE}22` }}>{row.be}</td>
+                        <td className="px-4 py-2.5 text-center text-ink font-medium">{row.total}</td>
                       </tr>
                     ))}
                   </tbody>

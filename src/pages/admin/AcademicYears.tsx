@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState, ListSkeleton, FocusFormButton } from "../../components/ui";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { AcademicYear } from "../../types";
@@ -66,13 +67,8 @@ export default function AcademicYearsPage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Academic Years</h1>
-        <p className="text-sm text-ink/60 mt-1">
-          Mark the current year before promoting classes at year rollover — promotions and new enrollments are always
-          recorded against whichever year is current.
-        </p>
-      </header>
+      <PageHeader title="Academic Years" description="Mark the current year before promoting classes at year rollover — promotions and new enrollments are always
+          recorded against whichever year is current." />
 
       <div className="neu-card p-5 mb-5">
         <div className="flex gap-2">
@@ -93,9 +89,9 @@ export default function AcademicYearsPage() {
 
       <div className="neu-card overflow-hidden">
         {loading ? (
-          <div className="p-6 text-sm text-ink/50">Loading…</div>
+          <ListSkeleton />
         ) : years.length === 0 ? (
-          <div className="p-6 text-sm text-ink/50">No academic years yet. Add one above.</div>
+          <EmptyState title="No academic years yet" hint="Add the current academic year above to get started." action={<FocusFormButton label="Add academic year" />} />
         ) : (
           <ul className="divide-y divide-line">
             {years.map((y) => (

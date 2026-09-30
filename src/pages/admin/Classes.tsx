@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState, ListSkeleton, FocusFormButton } from "../../components/ui";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { SchoolClass, Teacher, ClassTeacher } from "../../types";
@@ -91,12 +92,7 @@ export default function ClassesPage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Classes</h1>
-        <p className="text-sm text-ink/60 mt-1">
-          Manage classes and their class teacher(s) — a class can have more than one class teacher.
-        </p>
-      </header>
+      <PageHeader title="Classes" description="Manage classes and their class teacher(s) — a class can have more than one class teacher." />
 
       <div className="neu-card p-5 mb-5">
         <div className="flex gap-2">
@@ -116,9 +112,9 @@ export default function ClassesPage() {
 
       <div className="neu-card overflow-hidden">
         {loading ? (
-          <div className="p-6 text-sm text-ink/50">Loading…</div>
+          <ListSkeleton />
         ) : classes.length === 0 ? (
-          <div className="p-6 text-sm text-ink/50">No classes yet.</div>
+          <EmptyState title="No classes yet" hint="Add your first class above, for example 9A5." action={<FocusFormButton label="Add a class" />} />
         ) : (
           <ul className="divide-y divide-navy/10">
             {classes.map((c) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState, ReactNode } from "react";
 import { useAuth } from "../lib/auth";
 import crest from "../assets/school-crest-maroon.png";
+import crestWhite from "../assets/school-crest-white.png";
 
 interface NavItem {
   key: string;
@@ -126,34 +127,34 @@ export default function Shell({
 
       {/* Sidebar (desktop persistent, mobile slide-over) */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 shrink-0 bg-parchment text-ink flex flex-col border-r border-line transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 shrink-0 sidebar-maroon text-white flex flex-col transition-transform duration-200 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-4 lg:p-5 border-b border-line flex items-center justify-between">
+        <div className="p-4 lg:p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src={crest} alt="" className="h-9 w-auto shrink-0" />
+            <img src={crestWhite} alt="" className="h-9 w-auto shrink-0" />
             <div className="leading-tight font-display">
-              <div className="text-sm text-maroon-ink tracking-wide">KARIOBANGI SOUTH</div>
-              <div className="text-[10px] tracking-[0.2em] text-ink/40 uppercase font-body">Assessment Portal</div>
+              <div className="text-sm text-white tracking-wide">KARIOBANGI SOUTH</div>
+              <div className="text-[10px] tracking-[0.2em] text-[#e8c47a] uppercase font-body">Assessment Portal</div>
             </div>
           </div>
           <button
             onClick={() => setMobileOpen(false)}
-            className="lg:hidden text-ink/50 hover:text-ink text-xl leading-none"
+            className="lg:hidden text-white/60 hover:text-white text-xl leading-none"
             aria-label="Close menu"
           >
             ×
           </button>
         </div>
 
-        <div className="px-4 lg:px-5 py-3 lg:py-4 border-b border-line flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-maroon/10 border border-maroon/30 flex items-center justify-center text-sm text-maroon font-body shrink-0">
+        <div className="px-4 lg:px-5 py-3 lg:py-4 border-b border-white/10 flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-white/10 border border-white/25 flex items-center justify-center text-sm text-white font-body shrink-0">
             {user.name[0]}
           </div>
           <div className="leading-tight font-body min-w-0">
-            <div className="text-sm text-ink truncate">{user.name}</div>
-            <div className="text-[11px] text-ink/40 uppercase tracking-wide">{effectiveRole}</div>
+            <div className="text-sm text-white truncate">{user.name}</div>
+            <div className="text-[11px] text-white/50 uppercase tracking-wide">{effectiveRole}</div>
           </div>
         </div>
 
@@ -164,7 +165,7 @@ export default function Shell({
           <div className="px-3 pt-3">
             <button
               onClick={onSwitchMode}
-              className="w-full text-center px-3 py-2 rounded text-[11px] uppercase tracking-wide border border-line text-ink/60 hover:text-ink hover:bg-maroon/5 font-body"
+              className="w-full text-center px-3 py-2 rounded text-[11px] uppercase tracking-wide border border-white/20 text-white/70 hover:text-white hover:bg-white/10 font-body"
             >
               Switch to {effectiveRole === "admin" ? "Teacher" : "Admin"} view
             </button>
@@ -183,8 +184,8 @@ export default function Shell({
                       onClick={() => handleNav(it.key)}
                       className={`w-full text-left px-3 py-2.5 rounded text-xs uppercase tracking-wide transition border-l-2 ${
                         view === it.key
-                          ? "bg-maroon/10 text-maroon border-l-maroon"
-                          : "border-l-transparent text-ink/50 hover:text-ink hover:bg-maroon/5"
+                          ? "bg-white/10 text-[#f0cf8a] border-l-[#e8c47a]"
+                          : "border-l-transparent text-white/65 hover:text-white hover:bg-white/5"
                       }`}
                     >
                       {it.label}
@@ -207,8 +208,8 @@ export default function Shell({
                             onClick={() => handleNav(it.key)}
                             className={`w-full text-left px-3 py-2.5 rounded text-xs uppercase tracking-wide transition border-l-2 ${
                               view === it.key
-                                ? "bg-maroon/10 text-maroon border-l-maroon"
-                                : "border-l-transparent text-ink/50 hover:text-ink hover:bg-maroon/5"
+                                ? "bg-white/10 text-[#f0cf8a] border-l-[#e8c47a]"
+                                : "border-l-transparent text-white/65 hover:text-white hover:bg-white/5"
                             }`}
                           >
                             {it.label}
@@ -225,8 +226,8 @@ export default function Shell({
                   onClick={() => handleNav(it.key)}
                   className={`w-full text-left px-3 py-2.5 rounded text-xs uppercase tracking-wide transition border-l-2 ${
                     view === it.key
-                      ? "bg-maroon/10 text-maroon border-l-maroon"
-                      : "border-l-transparent text-ink/50 hover:text-ink hover:bg-maroon/5"
+                      ? "bg-white/10 text-[#f0cf8a] border-l-[#e8c47a]"
+                      : "border-l-transparent text-white/65 hover:text-white hover:bg-white/5"
                   }`}
                 >
                   {it.label}
@@ -234,10 +235,10 @@ export default function Shell({
               ))}
         </nav>
 
-        <div className="p-3 border-t border-line">
+        <div className="p-3 border-t border-white/10">
           <button
             onClick={logout}
-            className="w-full text-left px-3 py-2 rounded text-xs uppercase tracking-wide text-ink/50 hover:text-ink hover:bg-maroon/5 font-body"
+            className="w-full text-left px-3 py-2 rounded text-xs uppercase tracking-wide text-white/65 hover:text-white hover:bg-white/5 font-body"
           >
             Sign out
           </button>

@@ -6,7 +6,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: #241417;
-  background: #f6f1e6;
+  background: #efe7d6;
   background-attachment: fixed;
 }
 
@@ -24,8 +24,8 @@ body {
 
 .neu-card,
 .glass-card {
-  background: #fffdfa;
-  border: 1px solid rgba(36, 20, 23, 0.10);
+  background: #ffffff;
+  border: 1px solid rgba(36, 20, 23, 0.15);
   border-radius: 14px;
   box-shadow: 0 1px 2px rgba(36, 20, 23, 0.04), 0 8px 24px rgba(36, 20, 23, 0.05);
   position: relative;
@@ -35,7 +35,7 @@ body {
 .neu-input,
 .glass-input {
   width: 100%;
-  background: #fffdfa;
+  background: #ffffff;
   border: 1px solid rgba(36, 20, 23, 0.16);
   border-radius: 8px;
   padding: 0.6rem 0.85rem;
@@ -149,7 +149,7 @@ input.no-spinner {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 600;
-  background: #fffdfa;
+  background: #ffffff;
   border: 1px solid rgba(36, 20, 23, 0.12);
   color: #6b5b5d;
   cursor: pointer;
@@ -222,7 +222,7 @@ input.no-spinner {
   font-size: 11px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #a9772c;
+  color: #8a5f20;
   font-weight: 700;
 }
 .neu-panel-title {
@@ -279,16 +279,16 @@ input.no-spinner {
    (not pure white), and a clear but not garish primary action.
    ------------------------------------------------------------ */
 .login-card {
-  background: linear-gradient(180deg, #fffdfa 0%, #fbf5ec 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #faf7f0 100%);
   border: 1px solid rgba(163, 18, 63, 0.14);
   box-shadow: 0 1px 2px rgba(122, 15, 48, 0.05), 0 16px 40px rgba(122, 15, 48, 0.09);
 }
 .login-input {
-  background: #fbf6ee;
+  background: #f8f5ee;
   border: 1px solid rgba(163, 18, 63, 0.16);
 }
 .login-input:focus {
-  background: #fffdfa;
+  background: #ffffff;
 }
 .login-input::placeholder {
   color: #a9959a;
@@ -301,7 +301,7 @@ input.no-spinner {
    secondary row underneath it.
    ------------------------------------------------------------ */
 .hero-panel {
-  background: #fffdfa;
+  background: #ffffff;
   border: 1px solid rgba(36, 20, 23, 0.1);
   border-left: 4px solid #a3123f;
   border-radius: 4px 14px 14px 4px;
@@ -374,3 +374,201 @@ input.no-spinner {
    desktop. Deleted the CSS rather than leaving unused dead classes
    behind. If a bottom bar is ever wanted again, re-add the render in
    Shell.tsx and restore this block from version control history. */
+
+/* ============================================================
+   UI POLISH LAYER -- spacing scale, page header, empty and
+   loading states, focus ring. Scale: 4 / 8 / 12 / 16 / 24 / 32.
+   ============================================================ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+/* Visible keyboard focus everywhere, without changing mouse behaviour. */
+:where(a, button, [role="button"], summary):focus-visible {
+  outline: 2px solid #a3123f;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid rgba(36, 20, 23, 0.1);
+}
+.page-title {
+  font-family: "Bitter", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.625rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #241417;
+}
+.page-desc {
+  margin-top: var(--space-1);
+  max-width: 62ch;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgba(36, 20, 23, 0.62);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+}
+.empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: rgba(163, 18, 63, 0.07);
+  color: #a3123f;
+  margin-bottom: var(--space-3);
+}
+.empty-state-title {
+  font-family: "Bitter", Georgia, serif;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #241417;
+}
+.empty-state-hint {
+  margin-top: var(--space-1);
+  max-width: 44ch;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: rgba(36, 20, 23, 0.58);
+}
+
+.skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid rgba(36, 20, 23, 0.06);
+}
+.skeleton-row:last-child {
+  border-bottom: none;
+}
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(36, 20, 23, 0.06) 25%, rgba(36, 20, 23, 0.11) 50%, rgba(36, 20, 23, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+/* Sidebar: the one strong colour block. Deep crest maroon with a brass
+   hairline edge, so the cream page and white cards read as a calm field. */
+.sidebar-maroon {
+  background: linear-gradient(180deg, #7a0f30 0%, #5a0a23 100%);
+  box-shadow: inset -3px 0 0 #b8892f;
+}
+.sidebar-maroon .neu-eyebrow {
+  color: #e8c47a;
+}
+
+/* ============================================================
+   ACTION HIERARCHY, BUSY STATES, TABLES
+   Primary = solid maroon (.neu-btn). Secondary = outlined maroon,
+   same size, for the "other" action beside a primary one.
+   ============================================================ */
+.neu-btn-secondary,
+.glass-btn-secondary {
+  background: #ffffff;
+  color: #7a0f30;
+  border: 1.5px solid rgba(163, 18, 63, 0.45);
+  border-radius: 8px;
+  padding: 0.6rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.neu-btn-secondary:hover,
+.glass-btn-secondary:hover {
+  background: rgba(163, 18, 63, 0.07);
+  border-color: #a3123f;
+}
+.neu-btn-secondary:active,
+.glass-btn-secondary:active {
+  transform: translateY(1px);
+}
+.neu-btn-secondary:disabled,
+.glass-btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Lift on hover for primary buttons (the base hover only darkens). */
+.neu-btn:not(:disabled):hover,
+.glass-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+/* Spinner for any button doing slow work (PDF/DOCX generation). */
+.is-busy {
+  position: relative;
+  pointer-events: none;
+}
+.is-busy::before {
+  content: "";
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.55em;
+  vertical-align: -0.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-busy::before { animation-duration: 1.6s; }
+}
+
+/* Data tables: hover row, calmer header, light row rules. */
+.data-table tbody tr {
+  transition: background 0.12s ease;
+}
+.data-table tbody tr:hover td {
+  background-color: rgba(163, 18, 63, 0.045);
+}
+.data-table tbody tr + tr td {
+  border-top: 1px solid rgba(36, 20, 23, 0.06);
+}
+.data-table thead th {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Type scale: 28 page title / 20 section / 16 card title / 14 body. */
+.page-title {
+  font-size: 1.75rem;
+}
+h2.font-display {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}

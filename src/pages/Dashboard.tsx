@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EmptyState, ListSkeleton, NavButton } from "../components/ui";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { Exam, SchoolClass, Teacher, TeacherAssignment, Subject } from "../types";
@@ -109,12 +110,12 @@ function AdminDashboard() {
           {loading ? (
             <span className="font-display text-lg text-ink/70">—</span>
           ) : openExam ? (
-            <span className="text-sm font-medium text-emerald-700 flex items-center gap-1.5 truncate">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-sm font-medium text-success flex items-center gap-1.5 truncate">
+              <span className="inline-block w-2 h-2 rounded-full bg-success shrink-0" />
               {openExam.name} — Open
             </span>
           ) : (
-            <span className="text-sm font-medium text-red-600">No exam open</span>
+            <span className="text-sm font-medium text-maroon">No exam open</span>
           )}
         </div>
       </div>
@@ -202,10 +203,10 @@ function ClassSubmissionList({
     setLoading(false);
   }
 
-  if (!examId) return <p className="text-sm text-ink/50 mt-3">Select an exam above to see submission progress.</p>;
-  if (loading) return <p className="text-sm text-ink/50 mt-3">Checking…</p>;
+  if (!examId) return <EmptyState title="Choose an exam" hint="Select an exam above to see which classes have submitted." />;
+  if (loading) return <ListSkeleton rows={2} />;
   const total = pending.length + submitted.length;
-  if (total === 0) return <p className="text-sm text-ink/50 mt-3">No classes assigned to this exam yet.</p>;
+  if (total === 0) return <EmptyState title="No classes on this exam" hint="Assign classes to this exam under Assessments." action={<NavButton view="exams" label="Open Assessments" />} />;
 
   return (
     <div className="mt-3">
@@ -345,7 +346,7 @@ function TeacherDashboard() {
           dominant -- everything else is quieter by comparison. */}
       <div className="hero-panel p-5 sm:p-6 mb-5">
         {loading ? (
-          <p className="text-sm text-ink/50">Checking your assignments…</p>
+          <ListSkeleton rows={2} />
         ) : openExams.length === 0 ? (
           <>
             <p className="neu-eyebrow mb-1">Assessment status</p>
@@ -404,12 +405,12 @@ function TeacherDashboard() {
           {loading ? (
             <span className="text-sm text-ink/70 text-right">—</span>
           ) : openExams.length > 0 ? (
-            <span className="text-sm font-medium text-emerald-700 flex items-center gap-1.5 truncate text-right">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-sm font-medium text-success flex items-center gap-1.5 truncate text-right">
+              <span className="inline-block w-2 h-2 rounded-full bg-success shrink-0" />
               {openExams.map((e) => e.name).join(", ")}
             </span>
           ) : (
-            <span className="text-sm font-medium text-red-600">None</span>
+            <span className="text-sm font-medium text-maroon">None</span>
           )}
         </div>
       </div>
@@ -417,9 +418,9 @@ function TeacherDashboard() {
       <div className="glass-card p-4 sm:p-5 mb-6">
         <h2 className="text-sm font-medium neu-panel-title mb-3">Your assignments</h2>
         {loading ? (
-          <div className="text-sm text-ink/50">Loading…</div>
+          <ListSkeleton rows={3} />
         ) : assignments.length === 0 ? (
-          <div className="text-sm text-ink/50">No assignments yet. Contact your admin.</div>
+          <EmptyState title="No assignments yet" hint="Contact your admin to be assigned a class and subject." />
         ) : (
           <ul className="divide-y divide-navy/10">
             {assignments.map((a) => {

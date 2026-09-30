@@ -24,6 +24,11 @@ import ContentBank from "./pages/admin/ContentBank";
 export default function App() {
   const { user, ready } = useAuth();
   const [view, setView] = useState("dashboard");
+  useEffect(() => {
+    const h = (e: Event) => setView((e as CustomEvent<string>).detail);
+    window.addEventListener("portal:navigate", h);
+    return () => window.removeEventListener("portal:navigate", h);
+  }, []);
   // Controls the pre-login flow: Landing first, then the Login form once
   // "Log in" is pressed. Resets to Landing whenever there's no signed-in
   // user (fresh visit, or after signing out), so the front door is

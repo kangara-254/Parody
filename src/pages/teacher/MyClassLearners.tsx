@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { EmptyState, ListSkeleton } from "../../components/ui";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { SchoolClass, Exam, Teacher, Subject, TeacherAssignment } from "../../types";
@@ -32,14 +33,11 @@ export default function MyClassLearners() {
     setLoading(false);
   }
 
-  if (loading) return <div className="text-sm text-ink/50">Loading…</div>;
+  if (loading) return <div className="neu-card overflow-hidden"><ListSkeleton /></div>;
 
   if (myClasses.length === 0) {
     return (
-      <div className="neu-card p-6 text-sm text-ink/50">
-        You're not assigned as a class teacher for any class yet. Ask your admin to assign you one from the
-        Classes page.
-      </div>
+      <div className="neu-card"><EmptyState title="No class assigned yet" hint="Ask your admin to assign you as a class teacher from the Classes page." /></div>
     );
   }
 
@@ -169,10 +167,10 @@ export function ClassTeachersStatus({ classObj }: { classObj: SchoolClass }) {
       .sort((a, b) => a.teacher.name.localeCompare(b.teacher.name));
   }, [assignments, teachers, subjects]);
 
-  if (loading) return <div className="text-sm text-ink/50 py-4">Loading…</div>;
+  if (loading) return <div className="neu-card overflow-hidden"><ListSkeleton rows={3} /></div>;
 
   if (exams.length === 0) {
-    return <div className="neu-card p-6 text-sm text-ink/50">No exams have been set for {classObj.name} yet.</div>;
+    return <div className="neu-card"><EmptyState title="No exams yet" hint={`No exams have been set for ${classObj.name} yet.`} /></div>;
   }
 
   return (
@@ -189,7 +187,7 @@ export function ClassTeachersStatus({ classObj }: { classObj: SchoolClass }) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="text-sm text-ink/50">No teachers assigned to this class yet.</div>
+        <EmptyState title="No teachers assigned" hint="Teachers appear here once they are assigned to this class." />
       ) : (
         <ul className="divide-y divide-navy/10">
           {rows.map((r) => {

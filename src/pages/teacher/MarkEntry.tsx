@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { PageHeader, EmptyState } from "../../components/ui";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { Exam, Learner, SchoolClass, Subject, TeacherAssignment, Mark, ExamSubjectConfig, cbcLevel } from "../../types";
@@ -710,15 +711,10 @@ export default function MarkEntry() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Enter Marks</h1>
-        <p className="text-sm text-ink/60 mt-1">Pick a class, learning area and exam you're assigned to, then fill in the grid.</p>
-      </header>
+      <PageHeader title="Enter Marks" description="Pick a class, learning area and exam you're assigned to, then fill in the grid." />
 
       {!loading && myClasses.length === 0 && (
-        <div className="text-sm text-ink/60 glass-card p-6">
-          You haven't been assigned to any classes yet. Ask your admin to assign you a class and subject.
-        </div>
+        <div className="glass-card"><EmptyState title="No classes assigned yet" hint="Ask your admin to assign you a class and subject." /></div>
       )}
 
       {myClasses.length > 0 && (
@@ -779,10 +775,7 @@ export default function MarkEntry() {
           )}
 
           {classId && subjectId && !openExamForClass && (
-            <div className="glass-card p-6 text-sm text-ink/50 mb-4">
-              No exam is currently open for marks entry.{" "}
-              <span className="text-ink/40">Past assessments for this class can still be viewed under Marklist.</span>
-            </div>
+            <div className="glass-card mb-4"><EmptyState title="No exam is open for marks entry" hint="Past assessments for this class can still be viewed under Marklist." /></div>
           )}
 
           {classId && subjectId && examId && (
@@ -871,9 +864,9 @@ export default function MarkEntry() {
               )}
               <div className="glass-card overflow-hidden">
                 {learners.length === 0 ? (
-                  <div className="p-6 text-sm text-ink/50">No learners in this class yet.</div>
+                  <EmptyState title="No learners in this class yet" hint="Ask your admin or class teacher to add learners." />
                 ) : !readyToEnter ? (
-                  <div className="p-6 text-sm text-ink/50">Set the maximum score above first.</div>
+                  <EmptyState title="Set the maximum score first" hint="The mark grid unlocks once you set the maximum score above." />
                 ) : (
                   <>
                     {/* One column of scores at a time (see activeView) --

@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState, ListSkeleton, NavButton } from "../../components/ui";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { AcademicYear, Learner, SchoolClass } from "../../types";
@@ -93,13 +94,8 @@ export default function PromotePage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Promote Classes</h1>
-        <p className="text-sm text-ink/60 mt-1">
-          Move every active learner in a class up to the next class at once, or graduate a whole class out of the
-          school. This never touches already-archived learners.
-        </p>
-      </header>
+      <PageHeader title="Promote Classes" description="Move every active learner in a class up to the next class at once, or graduate a whole class out of the
+          school. This never touches already-archived learners." />
 
       {!currentYear && !loading && (
         <div className="neu-card p-4 mb-5 text-sm text-maroon">
@@ -115,9 +111,9 @@ export default function PromotePage() {
 
       <div className="neu-card overflow-hidden mb-5">
         {loading ? (
-          <div className="p-6 text-sm text-ink/50">Loading…</div>
+          <ListSkeleton />
         ) : classes.length === 0 ? (
-          <div className="p-6 text-sm text-ink/50">No classes yet.</div>
+          <EmptyState title="No classes yet" hint="Add classes first, then come back to promote them." action={<NavButton view="classes" label="Go to Classes" />} />
         ) : (
           <ul className="divide-y divide-navy/10">
             {classes.map((c) => {

@@ -1,3 +1,4 @@
+import { EmptyState, ListSkeleton, FocusFormButton } from "../../components/ui";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Learner, LearnerStatus, LEARNER_STATUS_LABELS, SchoolClass } from "../../types";
@@ -217,9 +218,9 @@ export default function LearnersPage({ restrictToClassId }: { restrictToClassId?
 
       <div className="neu-card overflow-hidden">
         {loading ? (
-          <div className="p-6 text-sm text-ink/50">Loading…</div>
+          <ListSkeleton />
         ) : visible.length === 0 ? (
-          <div className="p-6 text-sm text-ink/50">No learners here yet.</div>
+          <EmptyState title="No learners yet" hint="Learners you add will appear here." action={<FocusFormButton label="Add a learner" />} />
         ) : (
           <ul className="divide-y divide-navy/10">
             {visible.map((l) => (

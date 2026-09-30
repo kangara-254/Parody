@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState, ListSkeleton } from "../../components/ui";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { fetchHistoricalLearners } from "../../lib/enrollment";
@@ -89,13 +90,8 @@ export default function ClassHistoryPage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Class History</h1>
-        <p className="text-sm text-ink/60 mt-1">
-          See exactly who was in a class during a past academic year — even after learners have since been promoted,
-          graduated, or moved on. This is a historical record; it can't be edited here.
-        </p>
-      </header>
+      <PageHeader title="Class History" description="See exactly who was in a class during a past academic year — even after learners have since been promoted,
+          graduated, or moved on. This is a historical record; it can't be edited here." />
 
       <div className="neu-card p-5 mb-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -137,11 +133,9 @@ export default function ClassHistoryPage() {
 
       <div className="neu-card overflow-hidden">
         {loading || fetching ? (
-          <div className="p-6 text-sm text-ink/50">Loading…</div>
+          <ListSkeleton />
         ) : !roster || roster.length === 0 ? (
-          <div className="p-6 text-sm text-ink/50">
-            No enrollment record found for this class in this year.
-          </div>
+          <EmptyState title="No enrollment record" hint="This class has no learners recorded for the selected year." />
         ) : (
           <ul className="divide-y divide-navy/10">
             {roster.map((l) => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader, EmptyState } from "../components/ui";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import {
@@ -259,13 +260,7 @@ export default function ReportForms() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="font-display text-2xl text-ink">Report Forms</h1>
-        <p className="text-sm text-ink/60 mt-1">
-          Generate CBC report forms with names, comments, and grading all filled in automatically. Download one
-          learner at a time to review their comment first, or the whole class in one file to print.
-        </p>
-      </header>
+      <PageHeader title="Report Forms" description="Generate CBC report forms with names, comments, and grading all filled in automatically. Download one learner at a time to review their comment first, or the whole class in one file to print." />
 
       <div className="glass-card p-5 mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <select
@@ -328,17 +323,17 @@ export default function ReportForms() {
               </p>
             </div>
             <div className="flex gap-2">
-              <button onClick={downloadAll} disabled={batchBusy || marklist.rows.length === 0} className="glass-btn-sm disabled:opacity-50">
+              <button onClick={downloadAll} disabled={batchBusy || marklist.rows.length === 0} className={`glass-btn-sm disabled:opacity-50 ${batchBusy ? "is-busy" : ""}`}>
                 {batchBusy ? "Preparing…" : `Download all .docx (${marklist.rows.length})`}
               </button>
-              <button onClick={downloadAllPdf} disabled={batchPdfBusy || marklist.rows.length === 0} className="glass-btn-sm disabled:opacity-50">
+              <button onClick={downloadAllPdf} disabled={batchPdfBusy || marklist.rows.length === 0} className={`glass-btn-sm disabled:opacity-50 ${batchPdfBusy ? "is-busy" : ""}`}>
                 {batchPdfBusy ? "Preparing…" : `Download all .pdf (${marklist.rows.length})`}
               </button>
             </div>
           </div>
 
           {marklist.rows.length === 0 ? (
-            <div className="p-6 text-sm text-ink/50">No marks recorded yet for this exam.</div>
+            <EmptyState title="No marks recorded yet" hint="Report forms can be generated once marks are entered for this exam." />
           ) : (
             <ul className="divide-y divide-line">
               {marklist.rows.map((row) => (
@@ -432,7 +427,7 @@ export default function ReportForms() {
       )}
 
       {!classId && !loading && (user?.role === "admin" || visibleClasses.length > 0) && (
-        <div className="text-sm text-ink/50">Select a class and assessment above to generate report forms.</div>
+        <div className="glass-card"><EmptyState title="Choose a class and assessment" hint="Pick both above to generate report forms." /></div>
       )}
     </div>
   );
