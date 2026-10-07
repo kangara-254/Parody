@@ -481,9 +481,9 @@ export default function MarkEntry() {
     const raw = activeView.scoreMap[learnerId] ?? "";
     const clean = raw.replace(/[^\d.]/g, "");
 
-    // Do not treat a soft-keyboard 'Done' press as an immediate save for
-    // a partial value. A user typing 5 then 8 should be able to finish the
-    // second digit without the field jumping ahead to the next learner.
+    // A mobile soft-keyboard 'Done' or 'Enter' press can fire before the
+    // teacher has finished typing a multi-digit score. Do not save a value
+    // until it is a complete, valid number.
     if (!clean || clean.length < 2) {
       e.preventDefault();
       return;
