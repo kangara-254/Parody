@@ -49,21 +49,13 @@ function writePendingCache(key: string, cache: Record<string, PendingMark>) {
   }
 }
 
-function sanitizeScoreInput(value: string) {
+function sanitizeMarkValue(value: string) {
   if (value === "") return "";
-
-  // Accept ordinary whole-number marks and decimals, but never allow
-  // browser-native number-input quirks to force weird stepping or multi-
-  // digit cursor jumps. We keep the field as text with numeric keyboard
-  // input so a teacher can type a score like 12 or 84 without the
-  // browser treating it as a one-digit stepper.
-  const cleaned = value.replace(/[^\d.]/g, "");
-  if (cleaned === "") return "";
-
-  const [whole, ...rest] = cleaned.split(".");
+  const digits = value.replace(/[^\d.]/g, "");
+  if (!digits) return "";
+  const [whole, ...rest] = digits.split(".");
   const decimal = rest.join("");
-  if (decimal.length === 0) return whole;
-  return `${whole}.${decimal}`;
+  return decimal ? `${whole}.${decimal}` : whole;
 }
 
 export default function MarkEntry() {
@@ -74,49 +66,23 @@ export default function MarkEntry() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [examClasses, setExamClasses] = useState<{ exam_id: string; class_id: string }[]>([]);
   const [learners, setLearners] = useState<Learner[]>([]);
-  const [marks, setMarks] = useState<Record<string, Mark>>({}); // key = learnerId, main subject
-  const [scores, setScores] = useState<Record<string, string>>({}); // draft values, key = learnerId, main subject
+  const [marks, setMarks] = useState<Record<string, Mark>>({});
+  const [scores, setScores] = useState<Record<string, string>>({});
 
-  // Composition/Insha -- the partner half of a paired learning area.
-  // These never get their own row in the subject picker (see
-  // mySubjectsForClass below). The teacher enters them independently
-  // from English/Kiswahili, via the tab switcher below (see activeHalf
-  // and activeView) -- never as a second column next to the main
-  // subject.
   const [partnerMarks, setPartnerMarks] = useState<Record<string, Mark>>({});
   const [partnerScores, setPartnerScores] = useState<Record<string, string>>({});
 
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [examId, setExamId] = useState("");
-  // A paired learning area (English/Kiswahili) shows its two halves as
-  // tabs, not side-by-side columns -- the teacher finishes one half for
-  // the whole class, then switches. "main" = the picked subject itself
-  // (English/Kiswahili), "partner" = its pair (Composition/Insha).
   const [activeHalf, setActiveHalf] = useState<"main" | "partner">("main");
   const scoreInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const saveButtonRef = useRef<HTMLButtonElement | null>(null);
-  // Lets a teacher type a few letters of a name to jump straight to that
-  // learner instead of scrolling an alphabetical list of up to ~60 rows.
-  // This is the fix for two separate pain points: (1) scripts get
-  // collected in random order, so marking them in the order they're
-  // picked up means hunting for each name in turn; (2) going back later
-  // to correct one learner's mark means finding them again in a long
-  // list. Typing the name solves both without changing the underlying
-  // alphabetical order everywhere else in the app relies on.
   const [search, setSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  // Per-row autosave feedback for the Enter-to-advance flow (see
-  // autoSaveRow / handleScoreKeyDown below). Keyed by learner id.
-  // "saved" entries clear themselves after a couple of seconds via
-  // savedTimerRefs; "error" entries stick around until fixed.
   const [rowStatus, setRowStatus] = useState<Record<string, "saving" | "saved" | "pending" | "error">>({});
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const savedTimerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  // Marks cached locally that haven't been confirmed saved to Supabase
-  // yet -- either because the network call failed, or the device is
-  // currently offline. Keyed by learner id, scoped to whatever grid is
-  // currently open (see pendingCacheKey).
   const [pendingMarks, setPendingMarks] = useState<Record<string, PendingMark>>({});
   const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [maxMarks, setMaxMarks] = useState<ExamSubjectConfig | null>(null);
@@ -132,14 +98,8 @@ export default function MarkEntry() {
   const [justSaved, setJustSaved] = useState(false);
   const justSavedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  useEffect(() => {
-    loadContext();
-  }, []);
+  useEffect(() => { loadContext(); }, []);
 
-  // Retry every cached-but-unconfirmed mark for the current grid the
-  // moment the browser reports it's back online. This is the whole
-  // point of the local cache: connectivity coming back is what turns
-  // "pending" into "saved" without the teacher having to do anything.
   useEffect(() => {
     function goOnline() {
       setIsOnline(true);
@@ -180,13 +140,6 @@ export default function MarkEntry() {
     return classes.filter((c) => ids.has(c.id));
   }, [assignments, classes]);
 
-  // A teacher given English or Kiswahili automatically also holds
-  // Composition or Insha (see the pair_learning_area_assignment trigger
-  // in schema.sql) — but each pair should still show as ONE learning
-  // area to pick from here, not two, so picking a class/subject/exam
-  // stays simple. Composition/Insha marks are still entered below, as a
-  // second column next to English/Kiswahili once picked -- they just
-  // never appear as their own separately-selectable learning area.
   const mySubjectsForClass = useMemo(() => {
     const ids = new Set(assignments.filter((a) => a.class_id === classId).map((a) => a.subject_id));
     const assigned = subjects.filter((s) => ids.has(s.id));
@@ -209,14 +162,6 @@ export default function MarkEntry() {
     if (classId && !mySubjectsForClass.some((s) => s.id === subjectId)) setSubjectId("");
   }, [classId]);
 
-  // Marks entry always targets the ONE exam currently open for this
-  // class -- a teacher shouldn't have to pick through a list of old
-  // exams just to find the editable one. examsForClass is already
-  // scoped to the picked class, so this is just "which of those is
-  // open" (at most one, per the single-open-exam rule -- see
-  // Exams.tsx and the exams_single_open DB trigger). If nothing is
-  // open for this class, examId stays empty and the UI below shows a
-  // plain "no exam open" message instead of a picker.
   const openExamForClass = useMemo(() => examsForClass.find((e) => !e.locked) ?? null, [examsForClass]);
   useEffect(() => {
     setExamId(openExamForClass?.id ?? "");
@@ -238,21 +183,13 @@ export default function MarkEntry() {
     setSearch("");
   }, [classId, subjectId, examId, activeHalf]);
 
-  // Name filter for the table below. The full alphabetical `learners`
-  // list stays untouched (saveAll and reports still rely on it) --
-  // this is purely what's visible/navigable while a search is active.
   const visibleLearners = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return learners;
     return learners.filter((l) => l.name.toLowerCase().includes(q));
   }, [learners, search]);
 
-  // Purely visual: when a search narrows to exactly one learner, that
-  // row gets a highlight so the teacher can see they've found the
-  // right one -- but focus stays put. Clicking into the score box is
-  // the teacher's call, not something typing a name should trigger.
-  const singleMatchId =
-    search.trim() && visibleLearners.length === 1 ? visibleLearners[0].id : null;
+  const singleMatchId = search.trim() && visibleLearners.length === 1 ? visibleLearners[0].id : null;
 
   async function loadGrid() {
     if (!supabase) return;
@@ -260,17 +197,11 @@ export default function MarkEntry() {
     setStatus("");
     const partnerId = partnerSubject?.id;
     const [l, m, cfg, pm, pcfg] = await Promise.all([
-      // Mark entry is always for the class as it stands today -- only
-      // currently-active learners should get a row to enter marks for.
       supabase.from("learners").select("*").eq("class_id", classId).eq("status", "active").order("name"),
       supabase.from("marks").select("*").eq("exam_id", examId).eq("subject_id", subjectId),
       supabase.from("exam_subject_config").select("*").eq("exam_id", examId).eq("subject_id", subjectId).maybeSingle(),
-      partnerId
-        ? supabase.from("marks").select("*").eq("exam_id", examId).eq("subject_id", partnerId)
-        : Promise.resolve({ data: [] as any[] }),
-      partnerId
-        ? supabase.from("exam_subject_config").select("*").eq("exam_id", examId).eq("subject_id", partnerId).maybeSingle()
-        : Promise.resolve({ data: null as ExamSubjectConfig | null }),
+      partnerId ? supabase.from("marks").select("*").eq("exam_id", examId).eq("subject_id", partnerId) : Promise.resolve({ data: [] as any[] }),
+      partnerId ? supabase.from("exam_subject_config").select("*").eq("exam_id", examId).eq("subject_id", partnerId).maybeSingle() : Promise.resolve({ data: null as ExamSubjectConfig | null }),
     ]);
     setLearners(l.data || []);
     const markMap: Record<string, Mark> = {};
@@ -366,12 +297,6 @@ export default function MarkEntry() {
   const effectiveMax = maxMarks?.max_marks ?? Number(maxMarksDraft) ?? 100;
   const effectiveMaxPartner = maxMarksPartner?.max_marks ?? Number(maxMarksPartnerDraft) ?? 100;
 
-  // Everything the grid/table needs to render ONE learning area's entry
-  // column -- the currently active half. For a non-paired subject
-  // there's only ever one half. For a paired one, main/partner are
-  // entered on entirely separate visits (different tab, different
-  // save), so only the active half's data is relevant to what's on
-  // screen right now.
   const activeView = useMemo(() => {
     const isPartner = isPairedSubject && activeHalf === "partner";
     return {
@@ -379,11 +304,6 @@ export default function MarkEntry() {
       subjectName: isPartner ? partnerName ?? "" : currentSubject?.name ?? "",
       scoreMap: isPartner ? partnerScores : scores,
       updateScore: isPartner ? updatePartnerScore : updateScore,
-      // The last CONFIRMED-saved value for each learner, as loaded from
-      // Supabase -- used only to tell a truly-saved score apart from
-      // one that's merely typed or cached locally pending sync (see
-      // groupedLearners below). Not touched by typing; only loadGrid
-      // (a real fetch from the database) updates this.
       marksMap: isPartner ? partnerMarks : marks,
       maxConfig: isPartner ? maxMarksPartner : maxMarks,
       max: isPartner ? effectiveMaxPartner : effectiveMax,
@@ -392,17 +312,6 @@ export default function MarkEntry() {
 
   const readyToEnter = !!activeView.maxConfig;
 
-  // Splits the visible list into three sections so a teacher can see
-  // at a glance who's left, rather than scanning a flat alphabetical
-  // list for gaps:
-  //   - needsMark: nothing entered yet
-  //   - pendingSync: entered, but only cached on this device so far
-  //     (offline, or the save to Supabase hasn't succeeded yet)
-  //   - saved: confirmed written to Supabase
-  // A learner only counts as "saved" when the typed value matches
-  // what was actually loaded back from the database -- editing an
-  // already-saved score immediately drops it back to pendingSync until
-  // the new value is confirmed too.
   const groupedLearners = useMemo(() => {
     const needsMark: Learner[] = [];
     const pendingSync: Learner[] = [];
@@ -422,12 +331,6 @@ export default function MarkEntry() {
     return { needsMark, pendingSync, saved };
   }, [visibleLearners, activeView.scoreMap, activeView.marksMap, rowStatus]);
 
-  // Load whatever's cached locally for the subject currently on screen,
-  // and immediately try to push it to Supabase in case connectivity is
-  // already back. This runs whenever the visible grid changes (class,
-  // exam, or which half of a paired subject is active) so a teacher
-  // reopening this screen -- even after closing the tab -- never loses
-  // marks that never made it to the database.
   useEffect(() => {
     if (!activeView.subjectId || !classId || !examId) {
       setPendingMarks({});
@@ -437,8 +340,6 @@ export default function MarkEntry() {
     const cached = readPendingCache(key);
     setPendingMarks(cached);
     if (Object.keys(cached).length > 0) {
-      // Reflect cached-but-unconfirmed marks in the score inputs so
-      // they're visible immediately, not just once a sync succeeds.
       Object.values(cached).forEach((pm) => activeView.updateScore(pm.learnerId, String(pm.score)));
       setRowStatus((s) => {
         const next = { ...s };
@@ -450,11 +351,6 @@ export default function MarkEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView.subjectId, classId, examId]);
 
-  // Attempts to push every currently-cached mark for the active
-  // subject to Supabase. Safe to call as often as needed (on
-  // reconnect, on grid load, or right after a save fails) -- anything
-  // that succeeds is removed from the cache, anything that still fails
-  // just stays queued for next time.
   function flushPending() {
     const subjId = activeView.subjectId;
     if (!supabase || !subjId || !classId || !examId) return;
@@ -478,8 +374,6 @@ export default function MarkEntry() {
         { onConflict: "exam_id,learner_id,subject_id" }
       );
       if (err) {
-        // Still offline or the request failed -- leave it cached and
-        // flagged as pending, it'll be retried on the next reconnect.
         setRowStatus((s) => ({ ...s, [pm.learnerId]: "pending" }));
         return;
       }
@@ -519,8 +413,6 @@ export default function MarkEntry() {
   }
 
   function focusNextScoreInput(currentLearnerId: string) {
-    // Marking straight down the class list (no search active): advance
-    // to the next row in the same alphabetical order as always.
     if (!search.trim()) {
       const idx = learners.findIndex((l) => l.id === currentLearnerId);
       const next = idx >= 0 ? learners[idx + 1] : null;
@@ -532,35 +424,15 @@ export default function MarkEntry() {
       saveButtonRef.current?.focus();
       return;
     }
-    // Working script-by-script in whatever order they were collected:
-    // "next" isn't a row below this one, it's "look up the next name".
-    // Clear the search and hand focus back to it so the teacher can
-    // immediately type the next learner's name from the next script.
     setSearch("");
     searchInputRef.current?.focus();
   }
 
-  // Saves exactly one learner's mark for the currently active
-  // half/subject -- fired the moment Enter is pressed on that row, not
-  // batched with the rest. Runs after handleScoreKeyDown has already
-  // validated the value, so this only ever hits the network with
-  // something that's allowed to be saved.
-  //
-  // isLastLearner is true when this was the bottom row in the list --
-  // i.e. the teacher just pressed Enter after the last learner, which
-  // is the moment right before they'd switch to the paired subject's
-  // tab or leave the page. That's the one save that needs a clear,
-  // hard-to-miss confirmation, not just the small per-row flash.
   async function autoSaveRow(learnerId: string, subjectIdToSave: string, score: number, subjectName: string, isLastLearner: boolean) {
     if (!supabase || !user) return;
-    // Cache first, save second: the mark is never at risk of being lost
-    // to a dropped connection, since it's already written to this
-    // device before the network call even starts.
     cachePendingMark(learnerId, subjectIdToSave, score, subjectName);
     setRowStatus((s) => ({ ...s, [learnerId]: "saving" }));
     if (!navigator.onLine) {
-      // Don't even attempt the request while known offline -- go
-      // straight to "pending", it'll sync automatically on reconnect.
       setRowStatus((s) => ({ ...s, [learnerId]: "pending" }));
       return;
     }
@@ -578,11 +450,6 @@ export default function MarkEntry() {
       { onConflict: "exam_id,learner_id,subject_id" }
     );
     if (err) {
-      // A failed request (offline, timeout, server hiccup) is not
-      // treated as a mistake to fix -- the score is still cached
-      // locally and will retry automatically. Only client-side
-      // validation (handled before this function is ever called)
-      // shows as a hard "error".
       setRowStatus((s) => ({ ...s, [learnerId]: "pending" }));
       return;
     }
@@ -596,7 +463,7 @@ export default function MarkEntry() {
     clearTimeout(savedTimerRefs.current[learnerId]);
     savedTimerRefs.current[learnerId] = setTimeout(() => {
       setRowStatus((s) => {
-        if (s[learnerId] !== "saved") return s; // don't clobber a newer status
+        if (s[learnerId] !== "saved") return s;
         const next = { ...s };
         delete next[learnerId];
         return next;
@@ -610,30 +477,31 @@ export default function MarkEntry() {
 
   function handleScoreKeyDown(e: KeyboardEvent<HTMLInputElement>, learnerId: string) {
     if (e.key !== "Enter") return;
-    // Plain input[type=number] would otherwise let Enter interact with
-    // the native spinner/step behaviour on some browsers instead of
-    // moving on -- always take over Enter here.
+
+    const raw = activeView.scoreMap[learnerId] ?? "";
+    const clean = raw.replace(/[^\d.]/g, "");
+
+    // Do not treat a soft-keyboard 'Done' press as an immediate save for
+    // a partial value. A user typing 5 then 8 should be able to finish the
+    // second digit without the field jumping ahead to the next learner.
+    if (!clean || clean.length < 2) {
+      e.preventDefault();
+      return;
+    }
+
     e.preventDefault();
     if (currentExam?.locked) return;
 
-    // "Last learner" (which triggers the all-done banner) only makes
-    // sense when marking straight down the full list -- while searching
-    // script-by-script there's no meaningful "last" until the teacher
-    // stops, so that banner is skipped for those saves.
     const idx = learners.findIndex((l) => l.id === learnerId);
     const isLastLearner = !search.trim() && idx === learners.length - 1;
 
-    const raw = activeView.scoreMap[learnerId];
     if (raw === undefined || raw === "") {
-      // Nothing typed for this row -- just move on, nothing to save.
       focusNextScoreInput(learnerId);
       return;
     }
     const max = activeView.maxConfig?.max_marks;
     const score = Number(raw);
     if (Number.isNaN(score) || max === undefined || score < 0 || score > max) {
-      // Invalid -- flag it and keep focus here rather than advancing,
-      // so a mistyped mark can't silently slip past uncaught.
       setRowStatus((s) => ({ ...s, [learnerId]: "error" }));
       setRowError((e2) => ({ ...e2, [learnerId]: `Must be 0–${max ?? "?"}` }));
       return;
@@ -675,9 +543,6 @@ export default function MarkEntry() {
         .filter(Boolean) as any[];
     }
 
-    // Only the active half's rows are saved -- main and partner are
-    // independent entry sessions now, so there is nothing to combine
-    // here (see activeView above).
     const rows = buildRows(activeView.subjectId, activeView.scoreMap, activeView.max);
     const invalid = rows.find((r) => r.invalid);
     if (invalid) {
@@ -686,9 +551,6 @@ export default function MarkEntry() {
       return;
     }
 
-    // Cache every row locally before attempting the network save, so a
-    // dropped connection partway through "Save All" can't lose marks
-    // that were already validated and ready to go.
     rows.forEach((r) => cachePendingMark(r.learner_id, r.subject_id, r.score, activeView.subjectName));
 
     if (!navigator.onLine) {
@@ -705,8 +567,6 @@ export default function MarkEntry() {
     const { error: err } = await supabase.from("marks").upsert(rows, { onConflict: "exam_id,learner_id,subject_id" });
     setSaving(false);
     if (err) {
-      // Rows stay cached locally (see above) and marked pending rather
-      // than lost -- a retry happens automatically on reconnect.
       setStatus(`Couldn't reach the server. ${rows.length} mark(s) are saved on this device and will sync automatically.`);
       setRowStatus((s) => {
         const next = { ...s };
@@ -717,9 +577,6 @@ export default function MarkEntry() {
     }
     rows.forEach((r) => clearPendingMark(r.learner_id, r.subject_id));
     setStatus(`Saved ${rows.length} mark(s) for ${activeView.subjectName}.`);
-    // Button flashes green + "Saved ✓" for a couple of seconds so
-    // pressing Save gives an unmistakable confirmation, not just a
-    // line of text elsewhere on the page.
     setJustSaved(true);
     clearTimeout(justSavedTimer.current);
     justSavedTimer.current = setTimeout(() => setJustSaved(false), 2200);
@@ -739,30 +596,12 @@ export default function MarkEntry() {
           <div className="glass-card p-5 mb-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <select value={classId} onChange={(e) => setClassId(e.target.value)} className="glass-input">
               <option value="">Select class</option>
-              {myClasses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {myClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select
-              value={subjectId}
-              onChange={(e) => setSubjectId(e.target.value)}
-              disabled={!classId}
-              className="glass-input disabled:opacity-50"
-            >
+            <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={!classId} className="glass-input disabled:opacity-50">
               <option value="">Select learning area</option>
-              {mySubjectsForClass.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              {mySubjectsForClass.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            {/* Read-only status, not a picker -- see openExamForClass above.
-                There's never more than one open exam to choose between, so
-                a dropdown here would just be old exams a teacher could
-                accidentally (and harmlessly, since locked exams reject
-                edits) select instead of the one that matters right now. */}
             <div className={`glass-input flex items-center ${!classId || openExamForClass ? "text-ink" : "text-maroon"}`}>
               {!classId ? (
                 <span className="text-ink/40">Select a class first</span>
@@ -779,9 +618,7 @@ export default function MarkEntry() {
 
           {isPairedSubject && classId && (
             <div className="text-xs text-ink/50 mb-4 px-1">
-              {currentSubject?.name} covers <strong>{partnerName}</strong> too, but they're entered independently —
-              pick one below, finish the class, then switch to the other. They're only combined into one{" "}
-              {currentSubject?.name} grade elsewhere in the portal.
+              {currentSubject?.name} covers <strong>{partnerName}</strong> too, but they're entered independently — pick one below, finish the class, then switch to the other. They're only combined into one {currentSubject?.name} grade elsewhere in the portal.
             </div>
           )}
 
@@ -799,20 +636,10 @@ export default function MarkEntry() {
             <>
               {isPairedSubject && (
                 <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setActiveHalf("main")}
-                    className={`text-sm px-4 py-2 rounded-lg font-medium transition ${
-                      activeHalf === "main" ? "bg-maroon text-white" : "bg-black/5 text-ink/60 hover:bg-black/10"
-                    }`}
-                  >
+                  <button onClick={() => setActiveHalf("main")} className={`text-sm px-4 py-2 rounded-lg font-medium transition ${activeHalf === "main" ? "bg-maroon text-white" : "bg-black/5 text-ink/60 hover:bg-black/10"}`}>
                     {currentSubject?.name}
                   </button>
-                  <button
-                    onClick={() => setActiveHalf("partner")}
-                    className={`text-sm px-4 py-2 rounded-lg font-medium transition ${
-                      activeHalf === "partner" ? "bg-maroon text-white" : "bg-black/5 text-ink/60 hover:bg-black/10"
-                    }`}
-                  >
+                  <button onClick={() => setActiveHalf("partner")} className={`text-sm px-4 py-2 rounded-lg font-medium transition ${activeHalf === "partner" ? "bg-maroon text-white" : "bg-black/5 text-ink/60 hover:bg-black/10"}`}>
                     {partnerName}
                   </button>
                 </div>
@@ -820,28 +647,11 @@ export default function MarkEntry() {
 
               <div className="glass-card p-5 mb-5">
                 <div className="text-sm font-medium text-ink mb-2">Maximum score for {activeView.subjectName}</div>
-                <p className="text-xs text-ink/50 mb-3">
-                  What was this exam out of? Set it once — every score below is graded as a percentage of this, not out of 100.
-                </p>
+                <p className="text-xs text-ink/50 mb-3">What was this exam out of? Set it once — every score below is graded as a percentage of this, not out of 100.</p>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <input
-                    type="number"
-                    min={1}
-                    value={activeHalf === "partner" ? maxMarksPartnerDraft : maxMarksDraft}
-                    onChange={(e) => (activeHalf === "partner" ? setMaxMarksPartnerDraft(e.target.value) : setMaxMarksDraft(e.target.value))}
-                    disabled={!!currentExam?.locked}
-                    className="glass-input w-28 disabled:opacity-50 no-spinner"
-                  />
-                  <button
-                    onClick={activeHalf === "partner" ? saveMaxMarksPartner : saveMaxMarks}
-                    disabled={(activeHalf === "partner" ? savingMaxPartner : savingMax) || !!currentExam?.locked}
-                    className="glass-btn-sm disabled:opacity-40"
-                  >
-                    {(activeHalf === "partner" ? savingMaxPartner : savingMax)
-                      ? "Saving…"
-                      : activeView.maxConfig
-                      ? "Update"
-                      : "Save"}
+                  <input type="number" min={1} value={activeHalf === "partner" ? maxMarksPartnerDraft : maxMarksDraft} onChange={(e) => (activeHalf === "partner" ? setMaxMarksPartnerDraft(e.target.value) : setMaxMarksDraft(e.target.value))} disabled={!!currentExam?.locked} className="glass-input w-28 disabled:opacity-50 no-spinner" />
+                  <button onClick={activeHalf === "partner" ? saveMaxMarksPartner : saveMaxMarks} disabled={(activeHalf === "partner" ? savingMaxPartner : savingMax) || !!currentExam?.locked} className="glass-btn-sm disabled:opacity-40">
+                    {(activeHalf === "partner" ? savingMaxPartner : savingMax) ? "Saving…" : activeView.maxConfig ? "Update" : "Save"}
                   </button>
                   {activeView.maxConfig && <span className="text-xs text-ink/50">Currently out of {activeView.maxConfig.max_marks}.</span>}
                   {!activeView.maxConfig && <span className="text-xs text-maroon">Not set yet — set this before entering scores.</span>}
@@ -850,35 +660,19 @@ export default function MarkEntry() {
 
               {learners.length > 0 && readyToEnter && (
                 <div className="mb-3 flex items-center gap-2">
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Find a learner by name — e.g. to mark scripts in the order you picked them up, or fix one score"
-                    className="glass-input w-full text-sm"
-                  />
+                  <input ref={searchInputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a learner by name — e.g. to mark scripts in the order you picked them up, or fix one score" className="glass-input w-full text-sm" />
                   {search && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch("");
-                        searchInputRef.current?.focus();
-                      }}
-                      className="glass-btn-sm shrink-0"
-                    >
-                      Clear
-                    </button>
+                    <button type="button" onClick={() => { setSearch(""); searchInputRef.current?.focus(); }} className="glass-btn-sm shrink-0">Clear</button>
                   )}
                 </div>
               )}
+
               {search.trim() && (
                 <div className="mb-2 text-xs text-ink/50">
-                  {visibleLearners.length === 0
-                    ? "No learner matches that."
-                    : `${visibleLearners.length} match${visibleLearners.length === 1 ? "" : "es"} — showing filtered list below.`}
+                  {visibleLearners.length === 0 ? "No learner matches that." : `${visibleLearners.length} match${visibleLearners.length === 1 ? "" : "es"} — showing filtered list below.`}
                 </div>
               )}
+
               <div className="glass-card overflow-hidden">
                 {learners.length === 0 ? (
                   <EmptyState title="No learners in this class yet" hint="Ask your admin or class teacher to add learners." />
@@ -886,157 +680,108 @@ export default function MarkEntry() {
                   <EmptyState title="Set the maximum score first" hint="The mark grid unlocks once you set the maximum score above." />
                 ) : (
                   <>
-                    {/* One column of scores at a time (see activeView) --
-                        keeps this usable on a phone-width screen and
-                        matches the fact that main/partner are now
-                        separate entry sessions, not two things a teacher
-                        fills in side by side. Learner name column is
-                        sticky-left so it stays visible while scrolling
-                        horizontally on narrow screens. */}
                     <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-paper text-left shadow-[0_1px_0_0_rgba(36,20,23,0.10)]">
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 bg-paper sticky top-0 left-0 z-30">Learner</th>
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-24 sm:w-32 bg-paper sticky top-0 z-20">
-                            Score (0–{activeView.maxConfig?.max_marks})
-                          </th>
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-16 sm:w-20 bg-paper sticky top-0 z-20">%</th>
-                          <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-20 sm:w-28 bg-paper sticky top-0 z-20">Level</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          function renderRow(l: Learner) {
-                            const val = activeView.scoreMap[l.id] ?? "";
-                            const numeric = Number(val);
-                            const valid = val !== "" && !Number.isNaN(numeric);
-                            const pct = valid ? (numeric / (activeView.maxConfig?.max_marks ?? 1)) * 100 : null;
-                            const level = pct !== null ? cbcLevel(pct) : null;
-                            // A blank box and an explicit 0 must never look the
-                            // same -- one means "not looked at yet", the other
-                            // means "confirmed absent / genuinely scored zero".
-                            const isBlank = val === "";
-                            return (
-                              <tr
-                                key={l.id}
-                                className={`border-t border-line ${l.id === singleMatchId ? "bg-maroon-50" : ""}`}
-                              >
-                                <td className="px-3 sm:px-5 py-2 text-ink bg-paper sticky left-0 z-10">{l.name}</td>
-                                <td className="px-3 sm:px-5 py-2">
-                                  <div className="flex flex-col gap-0.5">
-                                    <input
-                                      ref={(el) => (scoreInputRefs.current[l.id] = el)}
-                                      type="text"
-                                      inputMode="decimal"
-                                      pattern="[0-9]*[.]?[0-9]*"
-                                      min={0}
-                                      max={activeView.maxConfig?.max_marks}
-                                      value={val}
-                                      disabled={!!currentExam?.locked}
-                                      placeholder="—"
-                                      onChange={(e) => {
-                                        const next = sanitizeScoreInput(e.target.value);
-                                        activeView.updateScore(l.id, next);
-                                        // Typing again after a save/error clears the
-                                        // stale indicator instead of leaving a "✓
-                                        // Saved" sitting under a since-edited value.
-                                        setRowStatus((s) => {
-                                          if (!(l.id in s)) return s;
-                                          const nextStatus = { ...s };
-                                          delete nextStatus[l.id];
-                                          return nextStatus;
-                                        });
-                                      }}
-                                      onKeyDown={(e) => handleScoreKeyDown(e, l.id)}
-                                      className={`w-20 sm:w-24 glass-input text-sm disabled:opacity-50 no-spinner transition-shadow duration-300 ${
-                                        rowStatus[l.id] === "saved"
-                                          ? "ring-2 ring-success confirm-pulse"
-                                          : rowStatus[l.id] === "pending"
-                                          ? "ring-2 ring-amber-400"
-                                          : rowStatus[l.id] === "error"
-                                          ? "ring-2 ring-maroon"
-                                          : isBlank
-                                          ? "ring-1 ring-maroon/30"
-                                          : ""
-                                      }`}
-                                    />
-                                    {rowStatus[l.id] === "saving" && <span className="text-[10px] text-ink/40">Saving…</span>}
-                                    {rowStatus[l.id] === "saved" && (
-                                      <span className="text-[10px] text-success">✓ Saved</span>
-                                    )}
-                                    {rowStatus[l.id] === "pending" && (
-                                      <span className="text-[10px] text-amber-600">
-                                        {isOnline ? "Syncing…" : "⏳ Saved on device — will sync"}
-                                      </span>
-                                    )}
-                                    {rowStatus[l.id] === "error" && (
-                                      <span className="text-[10px] text-maroon" title={rowError[l.id]}>
-                                        ⚠ {rowError[l.id] || "Not saved"}
-                                      </span>
-                                    )}
-                                    {isBlank && !rowStatus[l.id] && (
-                                      <span className="text-[10px] text-maroon/70">Not marked</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-3 sm:px-5 py-2 text-xs text-ink/60">{pct !== null ? `${Math.round(pct)}%` : "—"}</td>
-                                <td className="px-3 sm:px-5 py-2">
-                                  {level ? (
-                                    <span className={`neu-badge neu-badge-${level.toLowerCase()}`}>{level}</span>
-                                  ) : (
-                                    <span className="text-xs text-ink/40">—</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          }
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-paper text-left shadow-[0_1px_0_0_rgba(36,20,23,0.10)]">
+                            <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 bg-paper sticky top-0 left-0 z-30">Learner</th>
+                            <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-24 sm:w-32 bg-paper sticky top-0 z-20">Score (0–{activeView.maxConfig?.max_marks})</th>
+                            <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-16 sm:w-20 bg-paper sticky top-0 z-20">%</th>
+                            <th className="px-3 sm:px-5 py-3 font-medium text-ink/60 w-20 sm:w-28 bg-paper sticky top-0 z-20">Level</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            function renderRow(l: Learner) {
+                              const val = activeView.scoreMap[l.id] ?? "";
+                              const numeric = Number(val);
+                              const valid = val !== "" && !Number.isNaN(numeric);
+                              const pct = valid ? (numeric / (activeView.maxConfig?.max_marks ?? 1)) * 100 : null;
+                              const level = pct !== null ? cbcLevel(pct) : null;
+                              const isBlank = val === "";
+                              return (
+                                <tr key={l.id} className={`border-t border-line ${l.id === singleMatchId ? "bg-maroon-50" : ""}`}>
+                                  <td className="px-3 sm:px-5 py-2 text-ink bg-paper sticky left-0 z-10">{l.name}</td>
+                                  <td className="px-3 sm:px-5 py-2">
+                                    <div className="flex flex-col gap-0.5">
+                                      <input
+                                        ref={(el) => (scoreInputRefs.current[l.id] = el)}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={val}
+                                        disabled={!!currentExam?.locked}
+                                        placeholder="—"
+                                        onChange={(e) => {
+                                          const next = sanitizeMarkValue(e.target.value);
+                                          activeView.updateScore(l.id, next);
+                                          setRowStatus((s) => {
+                                            if (!(l.id in s)) return s;
+                                            const nextStatus = { ...s };
+                                            delete nextStatus[l.id];
+                                            return nextStatus;
+                                          });
+                                        }}
+                                        onKeyDown={(e) => handleScoreKeyDown(e, l.id)}
+                                        className={`w-20 sm:w-24 glass-input text-sm disabled:opacity-50 no-spinner transition-shadow duration-300 ${
+                                          rowStatus[l.id] === "saved"
+                                            ? "ring-2 ring-success confirm-pulse"
+                                            : rowStatus[l.id] === "pending"
+                                            ? "ring-2 ring-amber-400"
+                                            : rowStatus[l.id] === "error"
+                                            ? "ring-2 ring-maroon"
+                                            : isBlank
+                                            ? "ring-1 ring-maroon/30"
+                                            : ""
+                                        }`}
+                                      />
+                                      {rowStatus[l.id] === "saving" && <span className="text-[10px] text-ink/40">Saving…</span>}
+                                      {rowStatus[l.id] === "saved" && <span className="text-[10px] text-success">✓ Saved</span>}
+                                      {rowStatus[l.id] === "pending" && <span className="text-[10px] text-amber-600">{isOnline ? "Syncing…" : "⏳ Saved on device — will sync"}</span>}
+                                      {rowStatus[l.id] === "error" && <span className="text-[10px] text-maroon" title={rowError[l.id]}>⚠ {rowError[l.id] || "Not saved"}</span>}
+                                      {isBlank && !rowStatus[l.id] && <span className="text-[10px] text-maroon/70">Not marked</span>}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 sm:px-5 py-2 text-xs text-ink/60">{pct !== null ? `${Math.round(pct)}%` : "—"}</td>
+                                  <td className="px-3 sm:px-5 py-2">
+                                    {level ? <span className={`neu-badge neu-badge-${level.toLowerCase()}`}>{level}</span> : <span className="text-xs text-ink/40">—</span>}
+                                  </td>
+                                </tr>
+                              );
+                            }
 
-                          function divider(label: string, count: number) {
-                            return (
-                              <tr key={`divider-${label}`} className="bg-black/5">
-                                <td colSpan={4} className="px-3 sm:px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink/50">
-                                  {label} ({count})
-                                </td>
-                              </tr>
-                            );
-                          }
+                            function divider(label: string, count: number) {
+                              return (
+                                <tr key={`divider-${label}`} className="bg-black/5">
+                                  <td colSpan={4} className="px-3 sm:px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink/50">
+                                    {label} ({count})
+                                  </td>
+                                </tr>
+                              );
+                            }
 
-                          const { needsMark, pendingSync, saved } = groupedLearners;
-                          return (
-                            <>
-                              {needsMark.length > 0 && divider("Still needs a mark", needsMark.length)}
-                              {needsMark.map(renderRow)}
-                              {pendingSync.length > 0 && divider("Pending sync", pendingSync.length)}
-                              {pendingSync.map(renderRow)}
-                              {saved.length > 0 && divider("Saved", saved.length)}
-                              {saved.map(renderRow)}
-                            </>
-                          );
-                        })()}
-                      </tbody>
-                    </table>
+                            const { needsMark, pendingSync, saved } = groupedLearners;
+                            return (
+                              <>
+                                {needsMark.length > 0 && divider("Still needs a mark", needsMark.length)}
+                                {needsMark.map(renderRow)}
+                                {pendingSync.length > 0 && divider("Pending sync", pendingSync.length)}
+                                {pendingSync.map(renderRow)}
+                                {saved.length > 0 && divider("Saved", saved.length)}
+                                {saved.map(renderRow)}
+                              </>
+                            );
+                          })()}
+                        </tbody>
+                      </table>
                     </div>
                     <div className="p-5 border-t border-line flex items-center gap-3 flex-wrap">
-                      <button
-                        ref={saveButtonRef}
-                        onClick={saveAll}
-                        disabled={saving || !!currentExam?.locked}
-                        className={`glass-btn disabled:opacity-40 transition-colors duration-300 ${
-                          justSaved ? "!bg-success !text-white confirm-pulse" : ""
-                        }`}
-                      >
+                      <button ref={saveButtonRef} onClick={saveAll} disabled={saving || !!currentExam?.locked} className={`glass-btn disabled:opacity-40 transition-colors duration-300 ${justSaved ? "!bg-success !text-white confirm-pulse" : ""}`}>
                         {saving ? "Saving…" : justSaved ? "✓ Saved" : `Save ${activeView.subjectName} marks`}
                       </button>
-                      {status && (
-                        <span className="text-sm text-success bg-success/10 border border-success/20 rounded-full px-3 py-1">
-                          ✓ {status}
-                        </span>
-                      )}
+                      {status && <span className="text-sm text-success bg-success/10 border border-success/20 rounded-full px-3 py-1">✓ {status}</span>}
                       {groupedLearners.pendingSync.length > 0 && (
                         <span className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
-                          {isOnline ? "Syncing" : "⏳"} {groupedLearners.pendingSync.length} mark
-                          {groupedLearners.pendingSync.length === 1 ? "" : "s"} saved on this device, not yet on the server
+                          {isOnline ? "Syncing" : "⏳"} {groupedLearners.pendingSync.length} mark{groupedLearners.pendingSync.length === 1 ? "" : "s"} saved on this device, not yet on the server
                         </span>
                       )}
                       {error && <span className="text-sm text-maroon">{error}</span>}
