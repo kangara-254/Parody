@@ -49,6 +49,23 @@ function writePendingCache(key: string, cache: Record<string, PendingMark>) {
   }
 }
 
+function sanitizeScoreInput(value: string) {
+  if (value === "") return "";
+
+  // Accept ordinary whole-number marks and decimals, but never allow
+  // browser-native number-input quirks to force weird stepping or multi-
+  // digit cursor jumps. We keep the field as text with numeric keyboard
+  // input so a teacher can type a score like 12 or 84 without the
+  // browser treating it as a one-digit stepper.
+  const cleaned = value.replace(/[^\d.]/g, "");
+  if (cleaned === "") return "";
+
+  const [whole, ...rest] = cleaned.split(".");
+  const decimal = rest.join("");
+  if (decimal.length === 0) return whole;
+  return `${whole}.${decimal}`;
+}
+
 export default function MarkEntry() {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
@@ -910,23 +927,25 @@ export default function MarkEntry() {
                                   <div className="flex flex-col gap-0.5">
                                     <input
                                       ref={(el) => (scoreInputRefs.current[l.id] = el)}
-                                      type="number"
+                                      type="text"
                                       inputMode="decimal"
+                                      pattern="[0-9]*[.]?[0-9]*"
                                       min={0}
                                       max={activeView.maxConfig?.max_marks}
                                       value={val}
                                       disabled={!!currentExam?.locked}
                                       placeholder="—"
                                       onChange={(e) => {
-                                        activeView.updateScore(l.id, e.target.value);
+                                        const next = sanitizeScoreInput(e.target.value);
+                                        activeView.updateScore(l.id, next);
                                         // Typing again after a save/error clears the
                                         // stale indicator instead of leaving a "✓
                                         // Saved" sitting under a since-edited value.
                                         setRowStatus((s) => {
                                           if (!(l.id in s)) return s;
-                                          const next = { ...s };
-                                          delete next[l.id];
-                                          return next;
+                                          const nextStatus = { ...s };
+                                          delete nextStatus[l.id];
+                                          return nextStatus;
                                         });
                                       }}
                                       onKeyDown={(e) => handleScoreKeyDown(e, l.id)}
